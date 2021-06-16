@@ -1,4 +1,6 @@
 import requests
+from src.utilities import *
+
 
 # Production MERMAID API root URL.
 api_root = 'https://api.datamermaid.org/v1/'
@@ -16,7 +18,7 @@ class Client:
     # Attributes.
     attrs_endpoints = ['benthicattributes', 'fishfamilies', 'fishgenera', 'fishgroupings', 'fishsizes', 'fishspecies']
 
-    def __init__(self, token=None, url=api_root):
+    def __init__(self, token=None, url=api_root_dev):
         """
         Constructor for Client base class used for accessing MERMAID API data.
         :param token: (optional) Authenticated JWT token. Defaults to (token=None).
@@ -35,7 +37,7 @@ class Client:
         self.authenticated = False
 
         # Checks if a token is provided and assigns authenticated instance variable.
-        if token is not None:
+        if token:
             self.authenticated = True
 
         # Initializes requests Session and assigns headers for all Client MERMAID API calls.
@@ -80,12 +82,16 @@ class Client:
         :return: non-project resource data.
         """
 
-        # Check if client is authenticated for 'me' endpoint.
+        # TODO: Handle pagination, filters, PUT, HEAD OPTIONS requests
+        # Check if client is authenticated for access 'me' endpoint.
         if info == 'me' and not self.authenticated:
             return None
 
-        # TODO: Handle pagination, filters, PUT, HEAD OPTIONS requests
-        return self.api_root(info)
+        # Check if info in non-project resources endpoints list
+        if info in self.npr_endpoints:
+            return self.api_root(info)
+
+        return None
 
     def get_choices(self):
         """
@@ -114,10 +120,10 @@ class Client:
 
     def get_projects(self,  showall=False):
         """
-        The projects resource at the root of the API, without query parameters, returns a list of projects of which
+        Gets the projects subdirectory. Without query parameters, returns a list of projects of which
         the user is a member. The showall query parameter may be used to return projects unfiltered by the user’s
         membership. showall is important when the user is unauthenticated.
-        :param showall: Returns projects unfiltered by the user’s membership.
+        :param showall: (optional) Returns all projects unfiltered by the user’s membership.
         :return: projects
         :rtype: dict
         """
@@ -127,4 +133,43 @@ class Client:
         else:
             payload = 'showall'
             return self.api_root('projects', parameters=payload)
+
+    def get_my_project(self, name=None, id=None):
+        """
+        Gets a specific project. Either name or id required.
+        :param name: (optional if 'id' provided) project name.
+        :type name: str
+        :param id: (optional if 'name' provided) project id.
+        :type id: str
+        :return: project with associated data.
+        :rtype: dict
+        """
+        my_project = None
+        projects = self.get_projects(showall=True)
+
+        if projects:
+            if name:
+                my_project = lookup('name', name, projects['results'])
+            elif id:
+                my_project = lookup('id', id, projects['results'])
+
+        return my_project
+
+    def get_project_id(self, name=None, project=None):
+        """
+        Returns id for given project.
+        :param name: (optional if project dict provided) Name of project.
+        :type str
+        :param project: (optional if name provided) project dict containing project data.
+                        eg. project dict returned from get_my_project().
+        :type: dict
+        :return: project id
+        :rtype: str
+        """
+        if project is dict:
+            if 'id' in project:
+                return project.get('id')
+        else:
+            proj = self.get_my_project(name)
+            return proj.get('id')
 
