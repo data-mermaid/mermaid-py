@@ -17,9 +17,9 @@ class Client:
     npr_endpoints = ['health', 'managements', 'me', 'profiles', 'projecttags', 'sites', 'summarysites', 'version']
     # Attributes.
     attrs_endpoints = ['benthicattributes', 'fishfamilies', 'fishgenera', 'fishgroupings', 'fishsizes', 'fishspecies']
-    # Project resources
+    # Project resources.
     proj_resources = ['sites', 'managements', 'project_profiles', 'observers', 'collectrecords']
-    # Project observations
+    # Project observations.
     proj_obs = ['obstransectbeltfishs', 'obsbenthiclits', 'obsbenthicpits', 'obshabitatcomplexities',
                 'obscoloniesbleached', 'obsquadratbenthicpercent']
 
@@ -39,11 +39,9 @@ class Client:
         self.token = token
         # Authenticated Client instance variable.
         self.authenticated = False
-
         # Checks if a token is provided and assigns authenticated instance variable.
         if token:
             self.authenticated = True
-
         # Initializes requests Session and assigns headers for all Client MERMAID API calls.
         self.session = requests.Session()
         self.session.headers.update({
@@ -52,9 +50,10 @@ class Client:
 
         })
 
+    # API paths
     def api_root(self, subdirectory='', method='GET', parameters=None, data=None):
         """
-         Prepares API call and utilizes Client Session to make MERMAID API calls.
+        Prepares API call and utilizes Client Session to make MERMAID API calls.
         :param subdirectory: (optional) subdirectory path. Defaults to (subdirectory='').
         :type subdirectory: str
         :param method: HTTP request method. Defaults to (method='GET').
@@ -62,8 +61,8 @@ class Client:
         :param parameters: (optional) parameters for request.
         :type parameters: dict: (../?key=val), str: (../?str).
         :param data: (optional) data. Defaults to (data=None).
-        :return: JSON object containing MERMAID api data.
-        :rtype: None, dict
+        :return: JSON object containing MERMAID API data.
+        :rtype: dict, None
         """
         # Creates full URL path.
         prep_url = self.url + subdirectory
@@ -72,7 +71,7 @@ class Client:
         prepped = self.session.prepare_request(req)
         resp = self.session.send(prepped)
 
-        # Checks response status code and returns JSON if OK.
+        # Returns JSON if response code OK.
         if resp.status_code == requests.codes.ok:
             return resp.json()
         else:
@@ -82,43 +81,58 @@ class Client:
                 print('api_root response code: ' + str(resp.status_code))
             return None
 
-    def valid_project(self, name=None, id=None):
+    def projects_path(self, name=None, id=None, resource=None):
         """
-        Check for valid name or ID resource.
-        :param name: Name for validation check.
-        :param id: project ID for validation check.
-        :return: bool
+        Helper class function used to return projects path '/projects/<project_id>/' based on name or id of project.
+        :param name: (optional if 'id' provided) MERMAID project name.
+        :type name: str
+        :param id: (optional if 'name' provided) MERMAID project ID.
+        :type: id: str
+        :param resource:
+        :return: projects path, returns None if invalid project name or id.
+        :rtype: str, None
         """
-        if name and self.get_my_project(name=name):
-            return True
-        if id and self.get_my_project(id=id):
-            return True
-        return False
+        if resource:
+            if id:
+                return 'projects/' + id + '/' + resource + '/'
+            elif name:
+                p_id = self.get_project_id(name=name)
+                # Nested if instead of elif name and self.get_project_id(name=name) to improve performance by reducing
+                # the number of API calls for name or id NoneType check.
+                if p_id:
+                    return 'projects/' + p_id + '/' + resource + '/'
+        else:
+            if id:
+                return 'projects/' + id + '/'
+            elif name:
+                p_id = self.get_project_id(name=name)
+                if p_id:
+                    return 'projects/' + p_id + '/'
+        return None
 
+    # Get functions
     def get_info(self, info):
         """
-        Access non-project resource information. Authentication not required for health, version, profiles,
-        projecttags, sites, managements. Authentication required for me.
+        Gets non-project resource information. Authentication not required for health, version, profiles, projecttags,
+        sites, managements. Authentication required for me.
         :param info: health, version, profiles, projecttags, sites, managements, me.
         :type info: str
         :return: non-project resource data.
-        :rtype: None, dict, str
+        :rtype: dict, str, None
         """
         # TODO: Handle pagination, filters, PUT, HEAD OPTIONS requests
-        # Check if client is authenticated for access 'me' endpoint.
+        # Authentication required for access to 'me' API endpoint.
         if info == 'me' and not self.authenticated:
             return None
 
-        # Check if info in non-project resources endpoints list
         if info in self.npr_endpoints:
             return self.api_root(info)
-
         return None
 
     def get_choices(self):
         """
-        Convenience resource that returns a list of objects, each one of which has a name item (e.g., countries)
-        and a data item that is a list of available choice objects.
+        Gets a list of objects, each one of which has a name item (e.g., countries) and a data item that is a list
+        of available choice objects.
         :return: list of choice objects.
         :rtype: list
         """
@@ -127,26 +141,27 @@ class Client:
 
     def get_attribute(self, attr):
         """
-        Attributes are “things that can be observed” – coral and other taxa as well as non-organic benthic substrates
-        for benthic transects and bleaching surveys, fish species/genera/families as well as arbitrary fish groupings
-        for fish belt transects, and so on.
+        Gets attributes which are “things that can be observed” – coral and other taxa as well as non-organic
+        benthic substrates for benthic transects and bleaching surveys, fish species/genera/families as well
+        as arbitrary fish groupings for fish belt transects, and so on.
         :param attr: fishsizes, benthicattributes, fishfamilies, fishgenera, fishspecies, fishgroupings.
         :type attr: str
         :return: attribute data.
-        :rtype: None, dict
+        :rtype: dict, None
         """
         if attr not in self.attrs_endpoints:
             return None
         return self.api_root(attr)
 
-    def get_projects(self,  showall=False):
+    def get_projects(self, showall=False):
         """
         Gets the projects subdirectory. Without query parameters, returns a list of projects of which
         the user is a member. The showall query parameter may be used to return projects unfiltered by the user’s
         membership. showall is important when the user is unauthenticated.
         :param showall: (optional) Returns all projects unfiltered by the user’s membership.
+        :type showall: bool
         :return: projects.
-        :rtype: None, dict
+        :rtype: dict, None
         """
         if not showall:
             return self.api_root('projects')
@@ -156,17 +171,17 @@ class Client:
 
     def get_my_project(self, name=None, id=None):
         """
-        Gets a specific project. Either name or id required.
-        :param name: (optional if 'id' provided) project name.
+        Gets a specific MERMAID project. Either name or id required.
+        :param name: (optional if 'id' provided) MERMAID project name.
         :type name: str
-        :param id: (optional if 'name' provided) project ID.
+        :param id: (optional if 'name' provided) MERMAID project ID.
         :type id: str
         :return: project with associated data.
-        :rtype: None, dict
+        :rtype: dict, None
         """
         if id:
-            return self.api_root(subdirectory=projects_path(id))
-
+            path = self.projects_path(id=id)
+            return self.api_root(path)
         elif name:
             projects = self.get_projects(showall=True)
             # Projects not None type
@@ -176,51 +191,93 @@ class Client:
 
     def get_project_id(self, name=None, project=None):
         """
-        Gets an ID for given project.
-        :param name: (optional if 'project' dict provided) Name of project.
+        Gets an ID for given MERMAID project.
+        :param name: (optional if 'id' provided) MERMAID project name.
         :type: str
         :param project: (optional if 'name' provided) project dict containing project data.
-                         eg. project dict returned from get_my_project().
+        eg. project dict returned from get_my_project().
         :type: dict
         :return: project ID.
-        :rtype: None, str
+        :rtype: str, None
         """
         if project and isinstance(project, dict):
             return project.get('id')
-        else:
-            proj = self.get_my_project(name)
-            if self.valid_project(name=name):
-                return proj.get('id')
+        elif name:
+            project = self.get_my_project(name)
+            # Nested if instead of elif name and self.get_my_project(name=name) to improve performance by reducing
+            # the number of API calls for name or id NoneType check.
+            if project:
+                return project.get('id')
         return None
 
-    def get_project_data(self, data, name=None, id=None,):
+    def get_project_data(self, data, name=None, id=None):
         """
         Gets project resource data including resources and observations. Authenticated access to project data
         depends on the association of a user profile with a project. Unauthenticated access to project data
         depends on the data sharing policies chosen per survey method for a project.
-        Project resources include; sites, managements, project_profiles, observers, collectrecords.
-        Project observations include; obstransectbeltfishs, obsbenthiclits, obsbenthicpits, obshabitatcomplexities,
-        obscoloniesbleached, obsquadratbenthicpercent.
-        :param id: (optional if 'name' provided) project ID.
-        :type id: str
-        :param name: (optional if 'id' provided) project name.
+        :param name: (optional if 'id' provided) MERMAID project name.
         :type name: str
-        :param data: project resource or observation data.
+        :param id: (optional if 'name' provided) MERMAID project ID.
+        :type id: str
+        :param data: project resource or observation data. Project resources include; sites, managements,
+         project_profiles, observers, collectrecords. Project observations include; obstransectbeltfishs,
+         obsbenthiclits, obsbenthicpits, obshabitatcomplexities, obscoloniesbleached, obsquadratbenthicpercent.
         :return: project data.
-
+        :rtype: dict, None
         """
-        # Valid data filter
+        # Valid data check
         if data not in self.proj_resources and data not in self.proj_obs:
             return None
-
-        if id:
-            if self.valid_project(id=id):
-                path = projects_path(id, data)
-                return self.api_root(subdirectory=path)
-        else:
-            pr_id = self.get_project_id(name=name)
-            if self.valid_project(id=pr_id):
-                path = projects_path(pr_id, data)
-                return self.api_root(subdirectory=path)
+        # Create path from either name or id parameter
+        path = self.projects_path(name=name, id=id, resource=data)
+        if path:
+            return self.api_root(path)
         return None
+
+    def get_obs_data(self, obs, filter, filter_val=None, name=None, id=None):
+        """
+        Gets observation resources which are the lowest level of MERMAID data, representing individual observations
+        in sample unit methods, belonging to sample events (a set of sample unit methods at a site on a specific date).
+        :param obs: Project observations include; obstransectbeltfishs, obsbenthiclits, obsbenthicpits,
+         obshabitatcomplexities, obscoloniesbleached, obsquadratbenthicpercent.
+        :type obs: str
+        :param filter:see https://mermaid-api.readthedocs.io/en/latest/projects.html#observations for list of
+         observation and filter options
+        :type filter: str
+        :param filter_val: (optional) Required for filters requiring values eg. size_min, size_max, count_min,
+         count_max, length_min, length_max filters
+        :param name: (optional if 'id' provided) MERMAID project name.
+        :type name: str
+        :param id: (optional if 'name' provided) MERMAID project ID.
+        :type id: str
+        :return:
+        """
+        obs_filters = {
+            'obstransectbeltfishs': ['beltfish', 'beltfish__transect', 'beltfish__transect__sample_event',
+                                     'fish_attribute', 'size_min', 'size_max', 'count_min', 'count_max'],
+            'obsbenthiclits': ['benthiclit', 'benthicpit__transect', 'benthiclit__transect__sample_event',
+                               'attribute', 'growth_form', 'length_min', 'length_max'],
+            'obsbenthicpits': ['benthicpit', 'benthicpit__transect', 'benthicpit__transect__sample_event',
+                               'attribute', 'growth_form'],
+            'obshabitatcomplexities': ['habitatcomplexity', 'habitatcomplexity__transect',
+                                       'habitatcomplexity__transect__sample_event', 'score']
+        }
+        # Valid observation and filter for observation.
+        if obs not in obs_filters or filter not in obs_filters[obs]:
+            return None
+        # API observations path
+        path = self.projects_path(name=name, id=id, resource=obs)
+
+        # Filters
+        if path:
+            if filter_val:
+                payload = {filter: filter_val}
+                return self.api_root(path, parameters=payload)
+            else:
+                return self.api_root(path, parameters=filter)
+        return None
+
+
+
+
 

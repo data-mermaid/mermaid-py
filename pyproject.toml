@@ -19,8 +19,6 @@ commands = pytest -vvl
 # Pytest custom markers
 [tool.pytest.ini_options]
 markers = [
-    "utilities: utilities file tests (deselect with '-m \"not utilities\"')",
-    "client_init: client initialization tests ",
-    "client_info: client general resource access from MERMAID API",
+    "client_info: client general resource access from MERMAID API,(deselect with '-m \"not utilities\"'",
     "client_project: project related data access"
 ]
