@@ -22,6 +22,10 @@ class Client:
     # Project observations.
     proj_obs = ['obstransectbeltfishs', 'obsbenthiclits', 'obsbenthicpits', 'obshabitatcomplexities',
                 'obscoloniesbleached', 'obsquadratbenthicpercent']
+    # Project sample units, methods and events
+    samples = ['sampleevents','fishbelttransects', 'benthictransects', 'quadratcollections', 'beltfishtransectmethods',
+               'benthiclittransectmethods', 'benthicpittransectmethods', 'habitatcomplexitytransectmethods',
+               'bleachingquadratcollectionmethods', 'sampleunitmethods']
 
     def __init__(self, token=None, url=api_root_dev):
         """
@@ -219,14 +223,13 @@ class Client:
         :type name: str
         :param id: (optional if 'name' provided) MERMAID project ID.
         :type id: str
-        :param data: project resource or observation data. Project resources include; sites, managements,
-         project_profiles, observers, collectrecords. Project observations include; obstransectbeltfishs,
-         obsbenthiclits, obsbenthicpits, obshabitatcomplexities, obscoloniesbleached, obsquadratbenthicpercent.
+        :param data: project resource, observation or sample unit data.
+         For more info visit: https://mermaid-api.readthedocs.io/en/latest/projects.html#project-entity-resources
         :return: project data.
         :rtype: dict, None
         """
         # Valid data check
-        if data not in self.proj_resources and data not in self.proj_obs:
+        if data not in self.proj_resources and data not in self.proj_obs and data not in self.samples:
             return None
         # Create path from either name or id parameter
         path = self.projects_path(name=name, id=id, resource=data)
@@ -241,7 +244,7 @@ class Client:
         :param obs: Project observations include; obstransectbeltfishs, obsbenthiclits, obsbenthicpits,
          obshabitatcomplexities, obscoloniesbleached, obsquadratbenthicpercent.
         :type obs: str
-        :param filter:see https://mermaid-api.readthedocs.io/en/latest/projects.html#observations for list of
+        :param filter:visit: https://mermaid-api.readthedocs.io/en/latest/projects.html#observations for list of
          observation and filter options
         :type filter: str
         :param filter_val: (optional) Required for filters requiring values eg. size_min, size_max, count_min,

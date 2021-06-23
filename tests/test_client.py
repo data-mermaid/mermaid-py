@@ -125,7 +125,11 @@ def test_get_project_id__project():
 @pytest.mark.parametrize('project_res', [fail_name, fail_id, 'fail_filter', 'sites', 'managements', 'project_profiles',
                                          'observers', 'collectrecords', 'obstransectbeltfishs', 'obsbenthiclits',
                                          'obsbenthicpits', 'obshabitatcomplexities', 'obscoloniesbleached',
-                                         'obsquadratbenthicpercent'])
+                                         'obsquadratbenthicpercent', 'sampleevents', 'fishbelttransects',
+                                         'benthictransects', 'quadratcollections', 'beltfishtransectmethods',
+                                         'benthiclittransectmethods', 'benthicpittransectmethods',
+                                         'habitatcomplexitytransectmethods', 'bleachingquadratcollectionmethods',
+                                         'sampleunitmethods'])
 @pytest.mark.client_project
 def test_get_project_data(project_res):
     # Fail test cases
