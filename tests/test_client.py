@@ -4,7 +4,7 @@ from src.client import Client
 
 # Valid data
 # Run jupyter notebook sign-in widget to get token, if tests fail with unauthorized 401 error, attempt token refresh
-valid_token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2RhdGFtZXJtYWlkLmF1dGgwLmNvbS8iLCJzdWIiOiJnb29nbGUtb2F1dGgyfDEwMzQxOTkwNDcwMDU3MjAyMzQxMiIsImF1ZCI6WyJodHRwczovL2Rldi1hcGkuZGF0YW1lcm1haWQub3JnIl0sImlhdCI6MTYyNDQ4NjEwOSwiZXhwIjoxNjI0NDkzMzA5LCJhenAiOiI0QUhjVkZjd3hIYjdwMVZGQjlzRldHNTJXTDdwZE5tNSIsInNjb3BlIjoib3BlbmlkIHByb2ZpbGUgZW1haWwifQ.FbOKWgqC-fwYAJy1xqLg4M3tp5eZBAdfdkbJVZFrtT0'
+valid_token ='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2RhdGFtZXJtYWlkLmF1dGgwLmNvbS8iLCJzdWIiOiJnb29nbGUtb2F1dGgyfDEwMzQxOTkwNDcwMDU3MjAyMzQxMiIsImF1ZCI6WyJodHRwczovL2Rldi1hcGkuZGF0YW1lcm1haWQub3JnIl0sImlhdCI6MTYyNDY2MjQ4NCwiZXhwIjoxNjI0NjY5Njg0LCJhenAiOiI0QUhjVkZjd3hIYjdwMVZGQjlzRldHNTJXTDdwZE5tNSIsInNjb3BlIjoib3BlbmlkIHByb2ZpbGUgZW1haWwifQ.3iTN7k_kqLFtV-Uw13KMZezwLad4H7fXKSZi63umQa0'
 valid_name = 'Bronx River'
 valid_id = '2c56b92b-ba1c-491f-8b62-23b1dc728890'
 valid_project_filter = 'sites'
@@ -18,7 +18,7 @@ client = Client(token=valid_token)
 
 # Add tuples for more test cases
 @pytest.mark.parametrize("fetch, response", [
-    ('fail', None),
+    (fail_name, None),
     ('health', 'ok')
 ])
 @pytest.mark.client_info
@@ -28,10 +28,12 @@ def test_api_root(fetch, response):
 
 # Non-project resources data fetch tests grouped by client_info marker
 # get_info()
-@pytest.mark.parametrize("npr", ['health', 'managements', 'profiles', 'projecttags', 'sites', 'summarysites',
+@pytest.mark.parametrize("npr", [fail_name, 'health', 'managements', 'profiles', 'projecttags', 'sites', 'summarysites',
                                  'version'])
 @pytest.mark.client_info
 def test_get_info(npr):
+    if npr == fail_name:
+        assert client.get_info(npr) is None
     # non-project resources endpoints
     resp = client.get_info(npr)
     api_resp = client.api_root(npr)
@@ -53,13 +55,11 @@ def test_get_info__me():
     assert isinstance(user, dict)
 
 
-# get_choices()
 @pytest.mark.client_info
 def test_get_choices():
     assert client.get_choices()[0].get('name') == 'belttransectwidths'
 
 
-# get_attrs()
 @pytest.mark.parametrize("attrs", ['benthicattributes', 'fishfamilies', 'fishgenera', 'fishgroupings', 'fishsizes',
                                    'fishspecies'])
 @pytest.mark.client_info
@@ -85,9 +85,8 @@ def test_get_projects__showall():
     assert resp == api_resp
 
 
-# get_my_project()
 @pytest.mark.client_project
-@pytest.mark.parametrize('param', ['fail_name', 'fail_id', 'valid_name', 'valid_id'])
+@pytest.mark.parametrize('param', [fail_name, fail_id, 'valid_name', 'valid_id'])
 def test_get_my_project(param):
     if param == fail_name:
         assert client.get_my_project(name=param) is None
@@ -103,8 +102,7 @@ def test_get_my_project(param):
         assert client.get_my_project(id=param) == api_resp
 
 
-# get_project_id()
-@pytest.mark.parametrize("param", ['fail_name', 'fail_project', 'valid_name'])
+@pytest.mark.parametrize("param", [fail_name, fail_project, 'valid_name'])
 @pytest.mark.client_project
 def test_get_project_id(param):
     if param == fail_name:
@@ -145,26 +143,10 @@ def test_get_project_data(project_res):
     assert client.get_project_data(project_res, name=valid_name) == client.api_root(path)
 
 
-@pytest.mark.parametrize('obs', [fail_name, fail_id, 'fail_obs', 'fail_filter', 'obstransectbeltfishs',
-                                 'obsbenthiclits', 'obsbenthicpits', 'obshabitatcomplexities'])
+@pytest.mark.parametrize('obsv', [fail_name, fail_id, 'fail_obs', 'fail_filter', 'fail_fval', 'obstransectbeltfishs',
+                                  'obsbenthiclits', 'obsbenthicpits', 'obshabitatcomplexities'])
 @pytest.mark.client_project
-def test_get_obs_data__fail(obs):
-    # Fail test cases
-    if obs == fail_name:
-        print("ASSERT FAIL_NAME IS NONE REACHED")
-        assert client.get_obs_data(obs='obstransectbeltfishs', filter='beltfish', name=obs) is None
-    elif obs == fail_id:
-        assert client.get_obs_data(obs='obstransectbeltfishs', filter='beltfish', id=obs) is None
-    elif obs == 'fail_filter':
-        assert client.get_obs_data(obs='obstransectbeltfishs', filter=obs, id=valid_id) is None
-    elif obs == 'fail_obs':
-        assert client.get_obs_data(obs=obs, filter='beltfish', id=valid_id) is None
-
-
-@pytest.mark.parametrize('obs', ['obstransectbeltfishs',
-                                 'obsbenthiclits', 'obsbenthicpits', 'obshabitatcomplexities'])
-@pytest.mark.client_project
-def test_get_obs_data__pass(obs):
+def test_get_obs_data(obsv):
     obs_filters = {
         'obstransectbeltfishs': ['beltfish', 'beltfish__transect', 'beltfish__transect__sample_event',
                                  'fish_attribute', 'size_min', 'size_max', 'count_min', 'count_max'],
@@ -177,22 +159,115 @@ def test_get_obs_data__pass(obs):
     }
     f_vals = ['size_min', 'size_max', 'count_min', 'count_max', 'length_min', 'length_max']
 
-    # API observations path
-    path = 'projects/' + valid_id + '/' + obs + '/'
-    # Test each obsservation filter
-    print('OBS:' + str(obs))
-    for fil in obs_filters[obs]:
+    # Fail test cases
+    if obsv == fail_name:
+        assert client.get_obs_data(obs='obstransectbeltfishs', filter='beltfish', name=obsv) is None
+    elif obsv == fail_id:
+        assert client.get_obs_data(obs='obstransectbeltfishs', filter='beltfish', id=obsv) is None
+    elif obsv == 'fail_filter':
+        assert client.get_obs_data(obs='obstransectbeltfishs', filter=obsv, id=valid_id) is None
+    elif obsv == 'fail_fval':
+        assert client.get_obs_data(obs='obstransectbeltfishs', filter='size_min', filter_val=obsv, id=valid_id) is None
+    elif obsv == 'fail_obs':
+        assert client.get_obs_data(obs=obsv, filter='beltfish', id=valid_id) is None
 
-        # API path
-        if fil in f_vals:
-            print("fil in f_vals: " + str(fil))
-            # filter requires parameter value
-            payload = {fil: 1}
-            resp = client.get_obs_data(obs=obs, filter=fil, filter_val=1, id=valid_id)
+    # API observations path
+    path = 'projects/' + valid_id + '/' + obsv + '/'
+
+    # Test each observation filter
+    # Added if conditional due to issue with pytest still running obs_filters[obsv] after above assert fail cases
+    # producing KeyError
+    if obsv != fail_name and obsv != fail_id and obsv != 'fail_obs' and obsv != 'fail_filter' and obsv != 'fail_fval':
+        for fil in obs_filters[obsv]:
+
+            # API call compare
+            if fil in f_vals:
+                # filter requires parameter value
+                resp = client.get_obs_data(obs=obsv, filter=fil, filter_val=10, id=valid_id)
+                payload = {fil: 10}
+                api_resp = client.api_root(path, parameters=payload)
+                assert resp == api_resp
+            else:
+                resp = client.get_obs_data(obs=obsv, filter=fil, id=valid_id)
+                api_resp = client.api_root(path, parameters=fil)
+                assert resp == api_resp
+
+
+@pytest.mark.parametrize('unit', [fail_name, fail_id, 'fail_unit', 'fail_filter', 'fail_fil_val', 'fishbelttransects',
+                                    'benthictransects', 'quadratcollections'])
+@pytest.mark.client_project
+def test_get_sample_unit(unit):
+    # Fail test cases
+    if unit == fail_name:
+        assert client.get_sample_unit(unit='fishbelttransects', name=unit) is None
+    elif unit == fail_id:
+        assert client.get_sample_unit(unit='fishbelttransects', id=unit) is None
+    elif unit == 'fail_unit':
+        assert client.get_sample_unit(unit=unit, filter='beltfish', id=valid_id) is None
+    elif unit == 'fail_filter':
+        assert client.get_sample_unit(unit='fishbelttransects', filter=unit, id=valid_id) is None
+    elif unit == 'fail_fval':
+        resp = client.get_sample_unit(unit='fishbelttransects', filter='len_surveyed_min', filter_val=unit, id=valid_id)
+        assert resp is None
+
+    # API sample units path
+    path = 'projects/' + valid_id + '/' + unit + '/'
+
+    # API call compare
+    if unit == 'fishbelttransects' or unit == 'benthictransects':
+        # filter requires parameter value
+        sample_filters = ['len_surveyed_min', 'len_surveyed_max']
+        for fil in sample_filters:
+            resp = client.get_sample_unit(unit=unit, filter=fil, filter_val=20, id=valid_id)
+            payload = {fil: 20}
             api_resp = client.api_root(path, parameters=payload)
             assert resp == api_resp
         else:
-            print("fil not in f_vals: " + str(fil))
-            resp = client.get_obs_data(obs=obs, filter=fil, id=valid_id)
-            api_resp = client.api_root(path, parameters=fil)
+            resp = client.get_sample_unit(unit=unit, id=valid_id)
+            api_resp = client.api_root(path)
             assert resp == api_resp
+
+
+@pytest.mark.parametrize('method', [fail_name, fail_id, 'fail_method', 'beltfishtransectmethods',
+                                    'benthiclittransectmethods', 'benthicpittransectmethods',
+                                    'habitatcomplexitytransectmethods', 'bleachingquadratcollectionmethods',
+                                    'sampleunitmethods'])
+@pytest.mark.client_project
+def test_get_sample_method(method):
+    # Fail test cases
+    if method == fail_name:
+        assert client.get_sample_method(method='beltfishtransectmethods', name=method) is None
+    elif method == fail_id:
+        assert client.get_sample_method(method='beltfishtransectmethods', id=method) is None
+    elif method == 'fail_method':
+        assert client.get_sample_method(method=method, id=valid_id) is None
+
+    # API comparison sample units path
+    path = 'projects/' + valid_id + '/' + method + '/'
+    assert client.get_sample_method(method, id=valid_id) == client.api_root(path)
+
+
+@pytest.mark.parametrize('event', [fail_name, fail_id, 'fail_filter', 'fail_fval', 'sampleevents'])
+@pytest.mark.client_project
+def test_get_sample_events(event):
+    # Fail test cases
+    if event == fail_name:
+        assert client.get_sample_events(name=event) is None
+    elif event == fail_id:
+        assert client.get_sample_events(id=event) is None
+    elif event == 'fail_filter':
+        assert client.get_sample_events(filter=event, id=valid_id) is None
+    elif event == 'fail_fval':
+        assert client.get_sample_events(filter='sample_date_after', filter_val=event, id=valid_id) is None
+
+    filters = ['sample_date_before', 'sample_date_after']
+
+    # API observations path
+    path = 'projects/' + valid_id + '/' + 'sampleevents' + '/'
+
+    # Test each filter
+    for fil in filters:
+        resp = client.get_sample_events(filter=fil, filter_val='2018-11-16', id=valid_id)
+        payload = {fil: '2018-11-16'}
+        api_resp = client.api_root(path, parameters=payload)
+        assert resp == api_resp

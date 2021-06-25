@@ -1,11 +1,10 @@
 import requests
 from src.utilities import *
 
-
 # Production MERMAID API root URL.
-api_root = 'https://api.datamermaid.org/v1/'
+api_url = 'https://api.datamermaid.org/v1/'
 # Development MERMAID API root URL.
-api_root_dev = 'https://dev-api.datamermaid.org/v1/'
+api_dev_url = 'https://dev-api.datamermaid.org/v1/'
 
 
 class Client:
@@ -22,12 +21,12 @@ class Client:
     # Project observations.
     proj_obs = ['obstransectbeltfishs', 'obsbenthiclits', 'obsbenthicpits', 'obshabitatcomplexities',
                 'obscoloniesbleached', 'obsquadratbenthicpercent']
-    # Project sample units, methods and events
-    samples = ['sampleevents','fishbelttransects', 'benthictransects', 'quadratcollections', 'beltfishtransectmethods',
+    # Project sample units, methods and events.
+    samples = ['sampleevents', 'fishbelttransects', 'benthictransects', 'quadratcollections', 'beltfishtransectmethods',
                'benthiclittransectmethods', 'benthicpittransectmethods', 'habitatcomplexitytransectmethods',
                'bleachingquadratcollectionmethods', 'sampleunitmethods']
 
-    def __init__(self, token=None, url=api_root_dev):
+    def __init__(self, token=None, url=api_dev_url):
         """
         Constructor for Client base class used for accessing MERMAID API data.
         :param token: (optional) Authenticated JWT token. Defaults to (token=None).
@@ -85,40 +84,60 @@ class Client:
                 print('api_root response code: ' + str(resp.status_code))
             return None
 
-    def projects_path(self, name=None, id=None, resource=None):
+    def api_projects(self, name=None, id=None, resource=None, filter=None, filter_val=None):
         """
         Helper class function used to return projects path '/projects/<project_id>/' based on name or id of project.
+        See https://mermaid-api.readthedocs.io/en/latest/projects.html#project-resources for more information.
         :param name: (optional if 'id' provided) MERMAID project name.
         :type name: str
         :param id: (optional if 'name' provided) MERMAID project ID.
         :type: id: str
-        :param resource:
+        :param filter: MERMAID project resource filters.
+        :type filter: str
+        :param filter_val: (optional) Required for resource filters requiring values. eg. (size_min/size_max,
+        count_min/count_max, length_min/length_max, len_surveyed_min/len_surveyed_max,
+        sample_date_before/sample_date_after).
+        :type filter_val: str, int
+        :param resource: MERMAID project entity resources.
         :return: projects path, returns None if invalid project name or id.
         :rtype: str, None
         """
+        # Generate path.
+        path = None
         if resource:
             if id:
-                return 'projects/' + id + '/' + resource + '/'
+                path = 'projects/' + id + '/' + resource + '/'
             elif name:
                 p_id = self.get_project_id(name=name)
                 # Nested if instead of elif name and self.get_project_id(name=name) to improve performance by reducing
                 # the number of API calls for name or id NoneType check.
                 if p_id:
-                    return 'projects/' + p_id + '/' + resource + '/'
+                    path = 'projects/' + p_id + '/' + resource + '/'
         else:
             if id:
-                return 'projects/' + id + '/'
+                path = 'projects/' + id + '/'
             elif name:
                 p_id = self.get_project_id(name=name)
                 if p_id:
-                    return 'projects/' + p_id + '/'
-        return None
+                    path = 'projects/' + p_id + '/'
 
-    # Get functions
+        # API call and filters check.
+        if path:
+            if filter and filter_val:
+                payload = {filter: filter_val}
+                return self.api_root(path, parameters=payload)
+            elif filter:
+                return self.api_root(path, parameters=filter)
+            else:
+                return self.api_root(path)
+        return path
+
+    # Get functions.
     def get_info(self, info):
         """
         Gets non-project resource information. Authentication not required for health, version, profiles, projecttags,
         sites, managements. Authentication required for me.
+        See https://mermaid-api.readthedocs.io/en/latest/nonproject.html for more information on non-project resources.
         :param info: health, version, profiles, projecttags, sites, managements, me.
         :type info: str
         :return: non-project resource data.
@@ -176,6 +195,7 @@ class Client:
     def get_my_project(self, name=None, id=None):
         """
         Gets a specific MERMAID project. Either name or id required.
+        See https://mermaid-api.readthedocs.io/en/latest/projects.html for more information on project resources.
         :param name: (optional if 'id' provided) MERMAID project name.
         :type name: str
         :param id: (optional if 'name' provided) MERMAID project ID.
@@ -184,11 +204,10 @@ class Client:
         :rtype: dict, None
         """
         if id:
-            path = self.projects_path(id=id)
-            return self.api_root(path)
+            return self.api_projects(id=id)
         elif name:
             projects = self.get_projects(showall=True)
-            # Projects not None type
+            # Projects not None type.
             if projects:
                 return lookup('name', name, projects['results'])
         return None
@@ -208,7 +227,7 @@ class Client:
             return project.get('id')
         elif name:
             project = self.get_my_project(name)
-            # Nested if instead of elif name and self.get_my_project(name=name) to improve performance by reducing
+            # Nested if instead of 'elif name and self.get_my_project(name=name)' to improve performance by reducing
             # the number of API calls for name or id NoneType check.
             if project:
                 return project.get('id')
@@ -224,36 +243,37 @@ class Client:
         :param id: (optional if 'name' provided) MERMAID project ID.
         :type id: str
         :param data: project resource, observation or sample unit data.
-         For more info visit: https://mermaid-api.readthedocs.io/en/latest/projects.html#project-entity-resources
+        For more info visit https://mermaid-api.readthedocs.io/en/latest/projects.html#project-entity-resources
         :return: project data.
         :rtype: dict, None
         """
-        # Valid data check
+        # Valid data check.
         if data not in self.proj_resources and data not in self.proj_obs and data not in self.samples:
             return None
-        # Create path from either name or id parameter
-        path = self.projects_path(name=name, id=id, resource=data)
-        if path:
-            return self.api_root(path)
-        return None
+        # Create path from either name or id parameter.
+        return self.api_projects(name=name, id=id, resource=data)
 
     def get_obs_data(self, obs, filter, filter_val=None, name=None, id=None):
         """
         Gets observation resources which are the lowest level of MERMAID data, representing individual observations
         in sample unit methods, belonging to sample events (a set of sample unit methods at a site on a specific date).
+        See https://mermaid-api.readthedocs.io/en/latest/projects.html#observations for more information on
+        observations.
         :param obs: Project observations include; obstransectbeltfishs, obsbenthiclits, obsbenthicpits,
-         obshabitatcomplexities, obscoloniesbleached, obsquadratbenthicpercent.
+        obshabitatcomplexities, obscoloniesbleached, obsquadratbenthicpercent.
         :type obs: str
-        :param filter:visit: https://mermaid-api.readthedocs.io/en/latest/projects.html#observations for list of
-         observation and filter options
+        :param filter: Visit https://mermaid-api.readthedocs.io/en/latest/projects.html#observations for list of
+        observations filter options.
         :type filter: str
         :param filter_val: (optional) Required for filters requiring values eg. size_min, size_max, count_min,
-         count_max, length_min, length_max filters
+        count_max, length_min, length_max filters.
+        :type filter_val: int
         :param name: (optional if 'id' provided) MERMAID project name.
         :type name: str
         :param id: (optional if 'name' provided) MERMAID project ID.
         :type id: str
-        :return:
+        :return: observation data.
+        :rtype: dict, None
         """
         obs_filters = {
             'obstransectbeltfishs': ['beltfish', 'beltfish__transect', 'beltfish__transect__sample_event',
@@ -268,18 +288,78 @@ class Client:
         # Valid observation and filter for observation.
         if obs not in obs_filters or filter not in obs_filters[obs]:
             return None
-        # API observations path
-        path = self.projects_path(name=name, id=id, resource=obs)
+        # API observations path.
+        return self.api_projects(name=name, id=id, resource=obs, filter=filter, filter_val=filter_val)
 
-        # Filters
-        if path:
-            if filter_val:
-                payload = {filter: filter_val}
-                return self.api_root(path, parameters=payload)
-            else:
-                return self.api_root(path, parameters=filter)
-        return None
+    def get_sample_unit(self, unit, filter=None, filter_val=None, name=None, id=None):
+        """
+        Gets sample unit.
+        :param unit: Sample unit name. Same units: fishbelttransects, benthictransects, quadratcollections. Visit
+        https://mermaid-api.readthedocs.io/en/latest/projects.html#sample-units for more information on sample units.
+        :type unit: str
+        :param filter: The only useful filters are likely to be len_surveyed_min/len_surveyed_max for
+         fishbelttransects and benthictransects.
+        :type filter: str
+        :param filter_val: (optional) Required for filters requiring values, eg.(len_surveyed_min/len_surveyed_max).
+        :type filter_val: int
+        :param name: (optional if 'id' provided) MERMAID project name.
+        :type name: str
+        :param id: (optional if 'name' provided) MERMAID project ID.
+        :type id: str
+        :return: Same unit data.
+        :rtype: dict, None
+        """
+        sample_units = ['fishbelttransects', 'benthictransects', 'quadratcollections']
+        unit_filters = ['len_surveyed_min', 'len_surveyed_max']
+        # Valid unit and filter exits and in valid unit filters.
+        if unit not in sample_units or filter and filter not in unit_filters:
+            return None
+        # API sample unit path.
+        return self.api_projects(name=name, id=id, resource=unit, filter=filter, filter_val=filter_val)
 
+    def get_sample_method(self, method, name=None, id=None):
+        """
+        Gets sample unit method.
+        :param method: Sample unit methods: beltfishtransectmethods, benthiclittransectmethods,
+        benthicpittransectmethods, habitatcomplexitytransectmethods, bleachingquadratcollectionmethods,
+        sampleunitmethods.
+        See https://mermaid-api.readthedocs.io/en/latest/projects.html#sample-unit-methods for more information.
+        :type method: str
+        :param name: (optional if 'id' provided) MERMAID project name.
+        :type name: str
+        :param id: (optional if 'name' provided) MERMAID project ID.
+        :type id: str
+        :return: Sample unit methods data.
+        :rtype: dict, None
+        """
+        sample_methods = ['beltfishtransectmethods', 'benthiclittransectmethods', 'benthicpittransectmethods',
+                          'habitatcomplexitytransectmethods', 'bleachingquadratcollectionmethods', 'sampleunitmethods']
+
+        if method not in sample_methods:
+            return None
+        # API call sample unit methods path.
+        return self.api_projects(name=name, id=id, resource=method)
+
+    def get_sample_events(self, filter=None, filter_val=None, name=None, id=None):
+        """
+        Gets sample events. A sample event in MERMAID is a unique combination of site, management regime (both of which
+        are specific to a project), and sample date. It represents all observations from all sample units
+        (of whatever type) collected at a place on a date.
+        :param filter: sample_date_before, sample_date_after
+        :type filter: str
+        :param filter_val: (optional) Required for filters requiring values, eg.(len_surveyed_min/len_surveyed_max).
+        :type filter_val: str in format (YYYY-MM-DD)
+        :param name: (optional if 'id' provided) MERMAID project name.
+        :type name: str
+        :param id: (optional if 'name' provided) MERMAID project ID.
+        :type id: str
+        :return: sample events data.
+        """
+        event_filters = ['sample_date_before', 'sample_date_after']
+        if filter and filter not in event_filters:
+            return None
+        # API call sample events path.
+        return self.api_projects(name=name, id=id, resource='sampleevents', filter=filter, filter_val=filter_val)
 
 
 
