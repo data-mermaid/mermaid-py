@@ -17,14 +17,14 @@ class Client:
     # Attributes.
     attrs_endpoints = ['benthicattributes', 'fishfamilies', 'fishgenera', 'fishgroupings', 'fishsizes', 'fishspecies']
     # Project resources.
-    proj_resources = ['sites', 'managements', 'project_profiles', 'observers', 'collectrecords']
+    proj_resources = ['collectrecords', 'managements', 'observers', 'project_profiles', 'sites']
     # Project observations.
-    proj_obs = ['obstransectbeltfishs', 'obsbenthiclits', 'obsbenthicpits', 'obshabitatcomplexities',
-                'obscoloniesbleached', 'obsquadratbenthicpercent']
+    proj_obs = ['obsbenthiclits', 'obsbenthicpits','obscoloniesbleached', 'obshabitatcomplexities',
+                'obstransectbeltfishs', 'obsquadratbenthicpercent']
     # Project sample units, methods and events.
-    samples = ['sampleevents', 'fishbelttransects', 'benthictransects', 'quadratcollections', 'beltfishtransectmethods',
-               'benthiclittransectmethods', 'benthicpittransectmethods', 'habitatcomplexitytransectmethods',
-               'bleachingquadratcollectionmethods', 'sampleunitmethods']
+    samples = ['benthiclittransectmethods', 'benthicpittransectmethods', 'benthictransects', 'beltfishtransectmethods',
+               'bleachingquadratcollectionmethods', 'fishbelttransects', 'habitatcomplexitytransectmethods',
+               'quadratcollections', 'sampleevents', 'sampleunitmethods']
 
     def __init__(self, token=None, url=api_dev_url):
         """
@@ -309,10 +309,9 @@ class Client:
         :return: Same unit data.
         :rtype: dict, None
         """
-        sample_units = ['fishbelttransects', 'benthictransects', 'quadratcollections']
         unit_filters = ['len_surveyed_min', 'len_surveyed_max']
         # Valid unit and filter exits and in valid unit filters.
-        if unit not in sample_units or filter and filter not in unit_filters:
+        if unit not in self.samples or filter and filter not in unit_filters:
             return None
         # API sample unit path.
         return self.api_projects(name=name, id=id, resource=unit, filter=filter, filter_val=filter_val)
@@ -332,10 +331,7 @@ class Client:
         :return: Sample unit methods data.
         :rtype: dict, None
         """
-        sample_methods = ['beltfishtransectmethods', 'benthiclittransectmethods', 'benthicpittransectmethods',
-                          'habitatcomplexitytransectmethods', 'bleachingquadratcollectionmethods', 'sampleunitmethods']
-
-        if method not in sample_methods:
+        if method not in self.samples:
             return None
         # API call sample unit methods path.
         return self.api_projects(name=name, id=id, resource=method)
