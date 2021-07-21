@@ -14,8 +14,8 @@ setup(
     description='Through mermaid-py you can access data from MERMAID directly in Python.',
     long_description=long_description,
     long_description_content_type="text/markdown",
-    packages=find_packages(where='src'),
-    package_dir={'': 'src'},
-    py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
-    install_requires=['requests'],
+    packages=find_packages(where='mermaid_py'),
+    package_dir={'': 'mermaid_py'},
+    py_modules=[splitext(basename(path))[0] for path in glob('mermaid_py/*.py')],
+    install_requires=['requests', 'dataclasses-json'],
 )

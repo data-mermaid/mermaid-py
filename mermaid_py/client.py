@@ -1,37 +1,74 @@
 import requests
-from src.utilities import *
-
-# Production MERMAID API root URL.
-api_url = 'https://api.datamermaid.org/v1/'
-# Development MERMAID API root URL.
-api_dev_url = 'https://dev-api.datamermaid.org/v1/'
+from mermaid_py.utilities import *
 
 
 class Client:
     """
     Client base class used for accessing MERMAID API.
     """
+
     # Class variables.
+    # Production MERMAID API root URL.
+    api_url = "https://api.datamermaid.org/v1/"
+    # Development MERMAID API root URL.
+    api_dev_url = "https://dev-api.datamermaid.org/v1/"
     # Non-project resource endpoints.
-    npr_endpoints = ['health', 'managements', 'me', 'profiles', 'projecttags', 'sites', 'summarysites', 'version']
+    npr_endpoints = [
+        "health",
+        "managements",
+        "me",
+        "profiles",
+        "projecttags",
+        "sites",
+        "summarysites",
+        "version",
+    ]
     # Attributes.
-    attrs_endpoints = ['benthicattributes', 'fishfamilies', 'fishgenera', 'fishgroupings', 'fishsizes', 'fishspecies']
+    attrs_endpoints = [
+        "benthicattributes",
+        "fishfamilies",
+        "fishgenera",
+        "fishgroupings",
+        "fishsizes",
+        "fishspecies",
+    ]
     # Project resources.
-    proj_resources = ['collectrecords', 'managements', 'observers', 'project_profiles', 'sites']
+    proj_resources = [
+        "collectrecords",
+        "managements",
+        "observers",
+        "project_profiles",
+        "sites",
+    ]
     # Project observations.
-    proj_obs = ['obsbenthiclits', 'obsbenthicpits','obscoloniesbleached', 'obshabitatcomplexities',
-                'obstransectbeltfishs', 'obsquadratbenthicpercent']
+    proj_obs = [
+        "obsbenthiclits",
+        "obsbenthicpits",
+        "obscoloniesbleached",
+        "obshabitatcomplexities",
+        "obstransectbeltfishs",
+        "obsquadratbenthicpercent",
+    ]
     # Project sample units, methods and events.
-    samples = ['benthiclittransectmethods', 'benthicpittransectmethods', 'benthictransects', 'beltfishtransectmethods',
-               'bleachingquadratcollectionmethods', 'fishbelttransects', 'habitatcomplexitytransectmethods',
-               'quadratcollections', 'sampleevents', 'sampleunitmethods']
+    samples = [
+        "benthiclittransectmethods",
+        "benthicpittransectmethods",
+        "benthictransects",
+        "beltfishtransectmethods",
+        "bleachingquadratcollectionmethods",
+        "fishbelttransects",
+        "habitatcomplexitytransectmethods",
+        "quadratcollections",
+        "sampleevents",
+        "sampleunitmethods",
+    ]
 
     def __init__(self, token=None, url=api_dev_url):
         """
         Constructor for Client base class used for accessing MERMAID API data.
         :param token: (optional) Authenticated JWT token. Defaults to (token=None).
         :type token: str
-        :param url: (optional) API URL. Defaults to (url='https://api.datamermaid.org/v1/').
+        :param url: (optional) API URL. Defaults to (url='https://dev-api.datamermaid.org/v1/').
         :type url: str
         :return Client class object.
         """
@@ -47,20 +84,19 @@ class Client:
             self.authenticated = True
         # Initializes requests Session and assigns headers for all Client MERMAID API calls.
         self.session = requests.Session()
-        self.session.headers.update({
-            'content-type': "application/json",
-            'authorization': "Bearer %s" % self.token
-
-        })
+        self.session.headers.update(
+            {
+                "content-type": "application/json",
+                "authorization": "Bearer %s" % self.token,
+            }
+        )
 
     # API paths
-    def api_root(self, subdirectory='', method='GET', parameters=None, data=None):
+    def fetch_resource(self, resource="", parameters=None, data=None):
         """
         Prepares API call and utilizes Client Session to make MERMAID API calls.
-        :param subdirectory: (optional) subdirectory path. Defaults to (subdirectory='').
-        :type subdirectory: str
-        :param method: HTTP request method. Defaults to (method='GET').
-        :type method: str
+        :param resource: (optional) subdirectory path. Defaults to (subdirectory='').
+        :type resource: str
         :param parameters: (optional) parameters for request.
         :type parameters: dict: (../?key=val), str: (../?str).
         :param data: (optional) data. Defaults to (data=None).
@@ -68,9 +104,9 @@ class Client:
         :rtype: dict, None
         """
         # Creates full URL path.
-        prep_url = self.url + subdirectory
+        prep_url = self.url + resource
         # Prepares Request and send from Client class Session.
-        req = requests.Request(method, url=prep_url, params=parameters, data=data)
+        req = requests.Request("GET", url=prep_url, params=parameters, data=data)
         prepped = self.session.prepare_request(req)
         resp = self.session.send(prepped)
 
@@ -79,12 +115,16 @@ class Client:
             return resp.json()
         else:
             if resp.status_code == 401:
-                print('api_root response code: ' + str(resp.status_code) + ' -- Attempt token refresh')
+                print(
+                    f"fetch_resource response code: {resp.status_code} -- Attempt token refresh"
+                )
             else:
-                print('api_root response code: ' + str(resp.status_code))
+                print(f"fetch_resource response code: {resp.status_code}")
             return None
 
-    def api_projects(self, name=None, id=None, resource=None, filter=None, filter_val=None):
+    def api_projects(
+        self, name=None, id=None, resource=None, filter=None, filter_val=None
+    ):
         """
         Helper class function used to return projects path '/projects/<project_id>/' based on name or id of project.
         See https://mermaid-api.readthedocs.io/en/latest/projects.html#project-resources for more information.
@@ -92,13 +132,13 @@ class Client:
         :type name: str
         :param id: (optional if 'name' provided) MERMAID project ID.
         :type: id: str
+        :param resource: MERMAID project entity resources. /projects/<project_id>/<resource>
         :param filter: MERMAID project resource filters.
         :type filter: str
         :param filter_val: (optional) Required for resource filters requiring values. eg. (size_min/size_max,
         count_min/count_max, length_min/length_max, len_surveyed_min/len_surveyed_max,
         sample_date_before/sample_date_after).
         :type filter_val: str, int
-        :param resource: MERMAID project entity resources.
         :return: projects path, returns None if invalid project name or id.
         :rtype: str, None
         """
@@ -106,30 +146,32 @@ class Client:
         path = None
         if resource:
             if id:
-                path = 'projects/' + id + '/' + resource + '/'
+                path = f"projects/{id}/{resource}/"
             elif name:
                 p_id = self.get_project_id(name=name)
-                # Nested if instead of elif name and self.get_project_id(name=name) to improve performance by reducing
-                # the number of API calls for name or id NoneType check.
+                # Nested if instead of "elif name and self.get_project_id(name=name)"
+                # to improve performance by reducing the number of API calls for only 'id' NoneType check.
                 if p_id:
-                    path = 'projects/' + p_id + '/' + resource + '/'
+                    path = f"projects/{p_id}/{resource}/"
+
+        # No resource given
         else:
             if id:
-                path = 'projects/' + id + '/'
+                path = f"projects/{id}/"
             elif name:
                 p_id = self.get_project_id(name=name)
                 if p_id:
-                    path = 'projects/' + p_id + '/'
+                    path = f"projects/{p_id}/"
 
         # API call and filters check.
         if path:
             if filter and filter_val:
                 payload = {filter: filter_val}
-                return self.api_root(path, parameters=payload)
+                return self.fetch_resource(path, parameters=payload)
             elif filter:
-                return self.api_root(path, parameters=filter)
+                return self.fetch_resource(path, parameters=filter)
             else:
-                return self.api_root(path)
+                return self.fetch_resource(path)
         return path
 
     # Get functions.
@@ -143,13 +185,13 @@ class Client:
         :return: non-project resource data.
         :rtype: dict, str, None
         """
-        # TODO: Handle pagination, filters, PUT, HEAD OPTIONS requests
+        # TODO: Handle pagination
         # Authentication required for access to 'me' API endpoint.
-        if info == 'me' and not self.authenticated:
+        if info == "me" and not self.authenticated:
             return None
 
         if info in self.npr_endpoints:
-            return self.api_root(info)
+            return self.fetch_resource(info)
         return None
 
     def get_choices(self):
@@ -160,7 +202,7 @@ class Client:
         :rtype: list
         """
         # TODO: Filter: /updates/?timestamp="DATE"
-        return self.api_root('choices')
+        return self.fetch_resource("choices")
 
     def get_attribute(self, attr):
         """
@@ -174,7 +216,7 @@ class Client:
         """
         if attr not in self.attrs_endpoints:
             return None
-        return self.api_root(attr)
+        return self.fetch_resource(attr)
 
     def get_projects(self, showall=False):
         """
@@ -187,10 +229,10 @@ class Client:
         :rtype: dict, None
         """
         if not showall:
-            return self.api_root('projects')
+            return self.fetch_resource("projects")
         else:
-            payload = 'showall'
-            return self.api_root('projects', parameters=payload)
+            payload = "showall"
+            return self.fetch_resource("projects", parameters=payload)
 
     def get_my_project(self, name=None, id=None):
         """
@@ -209,7 +251,7 @@ class Client:
             projects = self.get_projects(showall=True)
             # Projects not None type.
             if projects:
-                return lookup('name', name, projects['results'])
+                return lookup("name", name, projects["results"])
         return None
 
     def get_project_id(self, name=None, project=None):
@@ -224,13 +266,13 @@ class Client:
         :rtype: str, None
         """
         if project and isinstance(project, dict):
-            return project.get('id')
+            return project.get("id")
         elif name:
             project = self.get_my_project(name)
             # Nested if instead of 'elif name and self.get_my_project(name=name)' to improve performance by reducing
             # the number of API calls for name or id NoneType check.
             if project:
-                return project.get('id')
+                return project.get("id")
         return None
 
     def get_project_data(self, data, name=None, id=None):
@@ -248,7 +290,11 @@ class Client:
         :rtype: dict, None
         """
         # Valid data check.
-        if data not in self.proj_resources and data not in self.proj_obs and data not in self.samples:
+        if (
+            data not in self.proj_resources
+            and data not in self.proj_obs
+            and data not in self.samples
+        ):
             return None
         # Create path from either name or id parameter.
         return self.api_projects(name=name, id=id, resource=data)
@@ -276,20 +322,46 @@ class Client:
         :rtype: dict, None
         """
         obs_filters = {
-            'obstransectbeltfishs': ['beltfish', 'beltfish__transect', 'beltfish__transect__sample_event',
-                                     'fish_attribute', 'size_min', 'size_max', 'count_min', 'count_max'],
-            'obsbenthiclits': ['benthiclit', 'benthicpit__transect', 'benthiclit__transect__sample_event',
-                               'attribute', 'growth_form', 'length_min', 'length_max'],
-            'obsbenthicpits': ['benthicpit', 'benthicpit__transect', 'benthicpit__transect__sample_event',
-                               'attribute', 'growth_form'],
-            'obshabitatcomplexities': ['habitatcomplexity', 'habitatcomplexity__transect',
-                                       'habitatcomplexity__transect__sample_event', 'score']
+            "obstransectbeltfishs": [
+                "beltfish",
+                "beltfish__transect",
+                "beltfish__transect__sample_event",
+                "fish_attribute",
+                "size_min",
+                "size_max",
+                "count_min",
+                "count_max",
+            ],
+            "obsbenthiclits": [
+                "benthiclit",
+                "benthicpit__transect",
+                "benthiclit__transect__sample_event",
+                "attribute",
+                "growth_form",
+                "length_min",
+                "length_max",
+            ],
+            "obsbenthicpits": [
+                "benthicpit",
+                "benthicpit__transect",
+                "benthicpit__transect__sample_event",
+                "attribute",
+                "growth_form",
+            ],
+            "obshabitatcomplexities": [
+                "habitatcomplexity",
+                "habitatcomplexity__transect",
+                "habitatcomplexity__transect__sample_event",
+                "score",
+            ],
         }
         # Valid observation and filter for observation.
         if obs not in obs_filters or filter not in obs_filters[obs]:
             return None
         # API observations path.
-        return self.api_projects(name=name, id=id, resource=obs, filter=filter, filter_val=filter_val)
+        return self.api_projects(
+            name=name, id=id, resource=obs, filter=filter, filter_val=filter_val
+        )
 
     def get_sample_unit(self, unit, filter=None, filter_val=None, name=None, id=None):
         """
@@ -309,12 +381,14 @@ class Client:
         :return: Same unit data.
         :rtype: dict, None
         """
-        unit_filters = ['len_surveyed_min', 'len_surveyed_max']
+        unit_filters = ["len_surveyed_min", "len_surveyed_max"]
         # Valid unit and filter exits and in valid unit filters.
         if unit not in self.samples or filter and filter not in unit_filters:
             return None
         # API sample unit path.
-        return self.api_projects(name=name, id=id, resource=unit, filter=filter, filter_val=filter_val)
+        return self.api_projects(
+            name=name, id=id, resource=unit, filter=filter, filter_val=filter_val
+        )
 
     def get_sample_method(self, method, name=None, id=None):
         """
@@ -351,12 +425,14 @@ class Client:
         :type id: str
         :return: sample events data.
         """
-        event_filters = ['sample_date_before', 'sample_date_after']
+        event_filters = ["sample_date_before", "sample_date_after"]
         if filter and filter not in event_filters:
             return None
         # API call sample events path.
-        return self.api_projects(name=name, id=id, resource='sampleevents', filter=filter, filter_val=filter_val)
-
-
-
-
+        return self.api_projects(
+            name=name,
+            id=id,
+            resource="sampleevents",
+            filter=filter,
+            filter_val=filter_val,
+        )
