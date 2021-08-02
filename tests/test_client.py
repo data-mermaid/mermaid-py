@@ -1,30 +1,59 @@
 import pytest
-import requests
 from mermaid_py.client import Client
 
 # Valid data
-# Run jupyter notebook sign-in widget to get token, if tests fail with unauthorized 401 error, attempt token refresh
-valid_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2RhdGFtZXJtYWlkLmF1dGgwLmNvbS8iLCJzdWIiOiJnb29nbGUtb2F1dGgyfDEwMzQxOTkwNDcwMDU3MjAyMzQxMiIsImF1ZCI6WyJodHRwczovL2Rldi1hcGkuZGF0YW1lcm1haWQub3JnIl0sImlhdCI6MTYyNjkwMjM3MCwiZXhwIjoxNjI2OTA5NTcwLCJhenAiOiI0QUhjVkZjd3hIYjdwMVZGQjlzRldHNTJXTDdwZE5tNSIsInNjb3BlIjoib3BlbmlkIHByb2ZpbGUgZW1haWwifQ.s7Aj1PcCH0Npd_FtHGqmMvfJVwpcuZEPF6n7GKS1HCk"
+# Run jupyter notebook sign-in widget to get token, if tests fail with unauthorized 401 Exception, attempt token refresh
+valid_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2RhdGFtZXJtYWlkLmF1dGgwLmNvbS8iLCJzdWIiOiJnb29nbGUtb2F1dGgyfDEwMzQxOTkwNDcwMDU3MjAyMzQxMiIsImF1ZCI6WyJodHRwczovL2Rldi1hcGkuZGF0YW1lcm1haWQub3JnIl0sImlhdCI6MTYyNzg2MDgxOCwiZXhwIjoxNjI3ODY4MDE4LCJhenAiOiI0QUhjVkZjd3hIYjdwMVZGQjlzRldHNTJXTDdwZE5tNSIsInNjb3BlIjoib3BlbmlkIHByb2ZpbGUgZW1haWwifQ.-WjZyBeKn52qu1DO1R3HFVGEjayD7pBEDRDcZzXM4ds"
 valid_name = "Bronx River"
 valid_id = "2c56b92b-ba1c-491f-8b62-23b1dc728890"
 valid_project_filter = "sites"
 # Fail data
 fail_name = "fail"
 fail_id = "0"
-fail_project = {}
 # Client object for testing
 client = Client(token=valid_token)
 
 
-# Add tuples for more test cases
-@pytest.mark.parametrize("fetch, response", [(fail_name, None), ("health", "ok")])
+@pytest.mark.parametrize("resource", (fail_name, "health"))
 @pytest.mark.client_info
-def test_fetch_response(fetch, response):
-    assert client.fetch_resource(fetch) == response
+def test_fetch_resource(resource):
+    # Fail test case with invalid resource name raises exception
+    if resource == fail_name:
+        with pytest.raises(Exception):
+            client._fetch_resource(resource)
+    else:
+        api_resp = client._fetch_resource(resource)
+        client_call = client._fetch_resource(resource)
+        assert client_call == api_resp
+
+
+@pytest.mark.parametrize("resource", (fail_name, fail_id, "fail_resource", valid_name, valid_id))
+@pytest.mark.client_info
+def test_api_projects_path(resource):
+    # Fail test case with invalid resource name raises exception
+    if resource == fail_name:
+        with pytest.raises(Exception):
+            client._api_projects_path(name=resource)
+    elif resource == fail_id:
+        with pytest.raises(Exception):
+            client._api_projects_path(id=resource)
+    elif resource == "fail_resource":
+        with pytest.raises(Exception):
+            client._api_projects_path(resource=resource)
+    else:
+        # API call with associated valid project name and id
+        path = f"projects/{valid_id}/"
+        api_resp = client._fetch_resource(resource=path)
+
+        if resource == valid_name:
+            client_call = client._api_projects_path(name=resource)
+            assert client_call == api_resp
+        elif resource == valid_id:
+            client_call = client._api_projects_path(id=resource)
+            assert client_call == api_resp
 
 
 # Non-project resources data fetch tests grouped by client_info marker
-# get_info()
 @pytest.mark.parametrize(
     "npr",
     [
@@ -40,27 +69,21 @@ def test_fetch_response(fetch, response):
 )
 @pytest.mark.client_info
 def test_get_info(npr):
-    if npr == fail_name:
-        assert client.get_info(npr) is None
     # non-project resources endpoints
-    resp = client.get_info(npr)
-    api_resp = client.fetch_resource(npr)
-    assert resp == api_resp
-
-
-@pytest.mark.client_info
-def test_get_info__me():
-    # Unauthenticated client trying to access fetch_resource('me') returns None
-    if not client.authenticated:
-        assert client.get_info("me") is None
-
-    user = client.get_info("me")
-    if not isinstance(user, dict):
-        print(f"Authenticated: {client.authenticated}")
-        print(f"type is: {type(client.get_info('me'))}")
-        print(f"Returned value:{client.get_info('me')} ")
-
-    assert isinstance(user, dict)
+    if npr == fail_name:
+        with pytest.raises(Exception):
+            client.get_info(npr)
+    elif npr == "me":
+        if not client.authenticated:
+            with pytest.raises(Exception):
+                client.get_info("me")
+        else:
+            user = client.get_info("me")
+            assert isinstance(user, dict)
+    else:
+        api_resp = client._fetch_resource(npr)
+        client_call = client.get_info(npr)
+        assert client_call == api_resp
 
 
 @pytest.mark.client_info
@@ -71,6 +94,7 @@ def test_get_choices():
 @pytest.mark.parametrize(
     "attrs",
     [
+        fail_name,
         "benthicattributes",
         "fishfamilies",
         "fishgenera",
@@ -81,62 +105,62 @@ def test_get_choices():
 )
 @pytest.mark.client_info
 def test_get_attrs(attrs):
-    resp = client.get_attribute(attrs)
-    api_resp = client.fetch_resource(attrs)
-    assert resp == api_resp
+    if attrs == fail_name:
+        with pytest.raises(Exception):
+            client.get_attribute(attrs)
+
+    else:
+        api_resp = client._fetch_resource(attrs)
+        client_call = client.get_attribute(attrs)
+        assert client_call == api_resp
 
 
-# Project resources data fetch tests grouped by client_project marker
-# get_projects()
+# Project resources data fetching tests are grouped by client_project marker
 @pytest.mark.client_project
 def test_get_projects():
-    resp = client.get_projects()
-    api_resp = client.fetch_resource("projects")
-    assert resp == api_resp
+    api_resp = client._fetch_resource("projects")
+    client_call = client.get_projects()
+    assert client_call == api_resp
 
 
 @pytest.mark.client_project
 def test_get_projects__showall():
-    resp = client.get_projects(showall=True)
-    api_resp = client.fetch_resource("projects", parameters="showall")
-    assert resp == api_resp
+    api_resp = client._fetch_resource("projects", parameters="showall")
+    client_call = client.get_projects(showall=True)
+    assert client_call == api_resp
 
 
 @pytest.mark.client_project
 @pytest.mark.parametrize("param", [fail_name, fail_id, "valid_name", "valid_id"])
 def test_get_my_project(param):
     if param == fail_name:
-        assert client.get_my_project(name=param) is None
+        with pytest.raises(Exception):
+            client.get_my_project(name=param)
     elif param == fail_id:
-        assert client.get_my_project(id=param) is None
+        with pytest.raises(Exception):
+            client.get_my_project(id=param)
     elif param == valid_name:
-        path = f"projects/{valid_id}/"
-        api_resp = client.fetch_resource(path)
+        api_resp = client._api_projects_path(id=valid_id)
         assert client.get_my_project(name=param) == api_resp
     elif param == valid_id:
-        path = f"projects/{valid_id}/"
-        api_resp = client.fetch_resource(path)
-        assert client.get_my_project(id=param) == api_resp
+        api_resp = client._api_projects_path(id=valid_id)
+        client_call = client.get_my_project(id=param)
+        assert client_call == api_resp
 
 
-@pytest.mark.parametrize("param", [fail_name, fail_project, "valid_name"])
+@pytest.mark.parametrize("param", [fail_name, valid_name, "valid_project"])
 @pytest.mark.client_project
 def test_get_project_id(param):
     if param == fail_name:
-        assert client.get_project_id(name=param) is None
-    elif param == fail_id:
-        assert client.get_project_id(project=param) is None
+        with pytest.raises(Exception):
+            client.get_project_id(name=param)
     elif param == valid_name:
-        path = f"projects/{valid_id}/"
-        assert client.get_project_id(name=param) == client.fetch_resource(path).get(
-            "id"
-        )
-
-
-@pytest.mark.client_project
-def test_get_project_id__project():
-    p = client.get_my_project(name=valid_name)
-    assert client.get_project_id(project=p) == valid_id
+        api_resp = client._api_projects_path(id=valid_id).get("id")
+        client_call = client.get_project_id(name=param)
+        assert client_call == api_resp
+    else:
+        proj = client.get_my_project(name=valid_name)
+        assert client.get_project_id(project=proj) == valid_id
 
 
 @pytest.mark.parametrize(
@@ -170,19 +194,19 @@ def test_get_project_id__project():
 )
 @pytest.mark.client_project
 def test_get_project_data(project_res):
-    # Fail test cases
     if project_res == fail_name:
-        assert client.get_project_data(valid_project_filter, name=project_res) is None
+        with pytest.raises(Exception):
+            client.get_project_data(valid_project_filter, name=project_res)
     elif project_res == fail_id:
-        assert client.get_project_data(valid_project_filter, id=project_res) is None
+        with pytest.raises(Exception):
+            client.get_project_data(valid_project_filter, id=project_res)
     elif project_res == "fail_filter":
-        assert client.get_project_data(data=project_res) is None
-
-    # API path
-    path = f"projects/{valid_id}/{project_res}/"
-    assert client.get_project_data(
-        project_res, name=valid_name
-    ) == client.fetch_resource(path)
+        with pytest.raises(Exception):
+            client.get_project_data(data=project_res)
+    else:
+        api_resp = client._api_projects_path(name=valid_name, resource=project_res)
+        client_call = client.get_project_data(project_res, name=valid_name)
+        assert client_call == api_resp
 
 
 @pytest.mark.parametrize(
@@ -192,7 +216,6 @@ def test_get_project_data(project_res):
         fail_id,
         "fail_obs",
         "fail_filter",
-        "fail_fval",
         "obstransectbeltfishs",
         "obsbenthiclits",
         "obsbenthicpits",
@@ -243,66 +266,38 @@ def test_get_obs_data(obsv):
         "length_min",
         "length_max",
     ]
-
-    # Fail test cases
     if obsv == fail_name:
-        assert (
+        with pytest.raises(Exception):
             client.get_obs_data(
                 obs="obstransectbeltfishs", filter="beltfish", name=obsv
             )
-            is None
-        )
     elif obsv == fail_id:
-        assert (
+        with pytest.raises(Exception):
             client.get_obs_data(obs="obstransectbeltfishs", filter="beltfish", id=obsv)
-            is None
-        )
     elif obsv == "fail_filter":
-        assert (
+        with pytest.raises(Exception):
             client.get_obs_data(obs="obstransectbeltfishs", filter=obsv, id=valid_id)
-            is None
-        )
-    elif obsv == "fail_fval":
-        assert (
-            client.get_obs_data(
-                obs="obstransectbeltfishs",
-                filter="size_min",
-                filter_val=obsv,
-                id=valid_id,
-            )
-            is None
-        )
     elif obsv == "fail_obs":
-        assert client.get_obs_data(obs=obsv, filter="beltfish", id=valid_id) is None
+        with pytest.raises(Exception):
+            client.get_obs_data(obs=obsv, filter="beltfish", id=valid_id)
 
-    # API observations path
-    path = f"projects/{valid_id}/{obsv}/"
-
-    # Test each observation filter
-    # Added if conditional due to issue with pytest still running obs_filters[obsv] after above assert fail cases
-    # producing KeyError
-    if (
-        obsv != fail_name
-        and obsv != fail_id
-        and obsv != "fail_obs"
-        and obsv != "fail_filter"
-        and obsv != "fail_fval"
-    ):
+    # Test each observation with available filter options
+    else:
+        path = f"projects/{valid_id}/{obsv}/"
         for fil in obs_filters[obsv]:
-
-            # API call compare
+            # API call for filters requiring values, value input = 10
             if fil in f_vals:
-                # filter requires parameter value
-                resp = client.get_obs_data(
+                payload = {fil: 10}
+                api_resp = client._fetch_resource(path, parameters=payload)
+                client_call = client.get_obs_data(
                     obs=obsv, filter=fil, filter_val=10, id=valid_id
                 )
-                payload = {fil: 10}
-                api_resp = client.fetch_resource(path, parameters=payload)
-                assert resp == api_resp
+                assert client_call == api_resp
+            # Test filters without required value
             else:
-                resp = client.get_obs_data(obs=obsv, filter=fil, id=valid_id)
-                api_resp = client.fetch_resource(path, parameters=fil)
-                assert resp == api_resp
+                api_resp = client._fetch_resource(path, parameters=fil)
+                client_call = client.get_obs_data(obs=obsv, filter=fil, id=valid_id)
+                assert client_call == api_resp
 
 
 @pytest.mark.parametrize(
@@ -312,7 +307,6 @@ def test_get_obs_data(obsv):
         fail_id,
         "fail_unit",
         "fail_filter",
-        "fail_fil_val",
         "fishbelttransects",
         "benthictransects",
         "quadratcollections",
@@ -322,43 +316,35 @@ def test_get_obs_data(obsv):
 def test_get_sample_unit(unit):
     # Fail test cases
     if unit == fail_name:
-        assert client.get_sample_unit(unit="fishbelttransects", name=unit) is None
+        with pytest.raises(Exception):
+            client.get_sample_unit(unit="fishbelttransects", name=unit)
     elif unit == fail_id:
-        assert client.get_sample_unit(unit="fishbelttransects", id=unit) is None
+        with pytest.raises(Exception):
+            client.get_sample_unit(unit="fishbelttransects", id=unit)
     elif unit == "fail_unit":
-        assert client.get_sample_unit(unit=unit, filter="beltfish", id=valid_id) is None
+        with pytest.raises(Exception):
+            client.get_sample_unit(unit=unit, filter="beltfish", id=valid_id)
     elif unit == "fail_filter":
-        assert (
+        with pytest.raises(Exception):
             client.get_sample_unit(unit="fishbelttransects", filter=unit, id=valid_id)
-            is None
-        )
-    elif unit == "fail_fval":
-        resp = client.get_sample_unit(
-            unit="fishbelttransects",
-            filter="len_surveyed_min",
-            filter_val=unit,
-            id=valid_id,
-        )
-        assert resp is None
 
-    # API sample units path
-    path = f"projects/{valid_id}/{unit}/"
-
-    # API call compare
-    if unit == "fishbelttransects" or unit == "benthictransects":
+    else:
+        # API sample units path
+        path = f"projects/{valid_id}/{unit}/"
+        # API call compare
         # filter requires parameter value
         sample_filters = ["len_surveyed_min", "len_surveyed_max"]
         for fil in sample_filters:
-            resp = client.get_sample_unit(
+            payload = {fil: 20}
+            api_resp = client._fetch_resource(path, parameters=payload)
+            client_call = client.get_sample_unit(
                 unit=unit, filter=fil, filter_val=20, id=valid_id
             )
-            payload = {fil: 20}
-            api_resp = client.fetch_resource(path, parameters=payload)
-            assert resp == api_resp
+            assert client_call == api_resp
         else:
-            resp = client.get_sample_unit(unit=unit, id=valid_id)
-            api_resp = client.fetch_resource(path)
-            assert resp == api_resp
+            client_call = client.get_sample_unit(unit=unit, id=valid_id)
+            api_resp = client._fetch_resource(path)
+            assert client_call == api_resp
 
 
 @pytest.mark.parametrize(
@@ -379,21 +365,19 @@ def test_get_sample_unit(unit):
 def test_get_sample_method(method):
     # Fail test cases
     if method == fail_name:
-        assert (
+        with pytest.raises(Exception):
             client.get_sample_method(method="beltfishtransectmethods", name=method)
-            is None
-        )
     elif method == fail_id:
-        assert (
+        with pytest.raises(Exception):
             client.get_sample_method(method="beltfishtransectmethods", id=method)
-            is None
-        )
     elif method == "fail_method":
-        assert client.get_sample_method(method=method, id=valid_id) is None
-
-    # API comparison sample units path
-    path = f"projects/{valid_id}/{method}/"
-    assert client.get_sample_method(method, id=valid_id) == client.fetch_resource(path)
+        with pytest.raises(Exception):
+            client.get_sample_method(method=method, id=valid_id)
+    # Pass test cases
+    else:
+        api_resp = client._api_projects_path(name=valid_name, resource=method)
+        client_call = client.get_sample_method(method, id=valid_id)
+        assert client_call == api_resp
 
 
 @pytest.mark.parametrize(
@@ -403,29 +387,31 @@ def test_get_sample_method(method):
 def test_get_sample_events(event):
     # Fail test cases
     if event == fail_name:
-        assert client.get_sample_events(name=event) is None
+        with pytest.raises(Exception):
+            client.get_sample_events(name=event)
     elif event == fail_id:
-        assert client.get_sample_events(id=event) is None
+        with pytest.raises(Exception):
+            client.get_sample_events(id=event)
     elif event == "fail_filter":
-        assert client.get_sample_events(filter=event, id=valid_id) is None
+        with pytest.raises(Exception):
+            client.get_sample_events(filter=event, id=valid_id)
     elif event == "fail_fval":
-        assert (
+        with pytest.raises(Exception):
             client.get_sample_events(
                 filter="sample_date_after", filter_val=event, id=valid_id
             )
-            is None
-        )
+    # Pass test cases
+    else:
+        filters = ["sample_date_before", "sample_date_after"]
 
-    filters = ["sample_date_before", "sample_date_after"]
+        # API observations path
+        path = f"projects/{valid_id}/sampleevents/"
 
-    # API observations path
-    path = f"projects/{valid_id}/sampleevents/"
-
-    # Test each filter
-    for fil in filters:
-        resp = client.get_sample_events(
-            filter=fil, filter_val="2018-11-16", id=valid_id
-        )
-        payload = {fil: "2018-11-16"}
-        api_resp = client.fetch_resource(path, parameters=payload)
-        assert resp == api_resp
+        # Test each filter
+        for fil in filters:
+            payload = {fil: "2018-11-16"}
+            api_resp = client._fetch_resource(path, parameters=payload)
+            client_call = client.get_sample_events(
+                filter=fil, filter_val="2018-11-16", id=valid_id
+            )
+            assert client_call == api_resp

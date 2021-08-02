@@ -92,18 +92,21 @@ class Client:
         )
 
     # API paths
-    def fetch_resource(self, resource="", parameters=None, data=None):
+    def _fetch_resource(self, resource=None, parameters=None, data=None):
         """
         Prepares API call and utilizes Client Session to make MERMAID API calls.
         :param resource: (optional) subdirectory path. Defaults to (subdirectory='').
         :type resource: str
         :param parameters: (optional) parameters for request.
-        :type parameters: dict: (../?key=val), str: (../?str).
+        :type parameters: dict:(../?key=val), str:(../?str).
         :param data: (optional) data. Defaults to (data=None).
         :return: JSON object containing MERMAID API data.
-        :rtype: dict, None
+        :rtype: dict
         """
         # Creates full URL path.
+        if resource is None:
+            raise Exception(f"_fetch_resource invalid resource:{resource}")
+
         prep_url = self.url + resource
         # Prepares Request and send from Client class Session.
         req = requests.Request("GET", url=prep_url, params=parameters, data=data)
@@ -115,19 +118,20 @@ class Client:
             return resp.json()
         else:
             if resp.status_code == 401:
-                print(
-                    f"fetch_resource response code: {resp.status_code} -- Attempt token refresh"
+                raise Exception(
+                    f"_fetch_resource response code: {resp.status_code} -- Attempt token refresh"
                 )
-            else:
-                print(f"fetch_resource response code: {resp.status_code}")
-            return None
 
-    def api_projects(
+            else:
+                raise Exception(f"_fetch_resource response code: {resp.status_code}")
+
+    def _api_projects_path(
         self, name=None, id=None, resource=None, filter=None, filter_val=None
     ):
         """
-        Helper class function used to return projects path '/projects/<project_id>/' based on name or id of project.
-        See https://mermaid-api.readthedocs.io/en/latest/projects.html#project-resources for more information.
+        Helper class function used to create and call projects path '/projects/<project_id>/' based on name or id
+        of project. See https://mermaid-api.readthedocs.io/en/latest/projects.html#project-resources for more
+        information.
         :param name: (optional if 'id' provided) MERMAID project name.
         :type name: str
         :param id: (optional if 'name' provided) MERMAID project ID.
@@ -139,8 +143,8 @@ class Client:
         count_min/count_max, length_min/length_max, len_surveyed_min/len_surveyed_max,
         sample_date_before/sample_date_after).
         :type filter_val: str, int
-        :return: projects path, returns None if invalid project name or id.
-        :rtype: str, None
+        :return: project resource.
+        :rtype: dict
         """
         # Generate path.
         path = None
@@ -154,25 +158,26 @@ class Client:
                 if p_id:
                     path = f"projects/{p_id}/{resource}/"
 
-        # No resource given
+        # No resource given generate path
         else:
             if id:
                 path = f"projects/{id}/"
+            # Get id for name of project and create path
             elif name:
                 p_id = self.get_project_id(name=name)
                 if p_id:
                     path = f"projects/{p_id}/"
 
-        # API call and filters check.
+        # API call from generated path and valid filters check.
         if path:
             if filter and filter_val:
                 payload = {filter: filter_val}
-                return self.fetch_resource(path, parameters=payload)
+                return self._fetch_resource(path, parameters=payload)
             elif filter:
-                return self.fetch_resource(path, parameters=filter)
+                return self._fetch_resource(path, parameters=filter)
             else:
-                return self.fetch_resource(path)
-        return path
+                return self._fetch_resource(path)
+        return self._fetch_resource(path)
 
     # Get functions.
     def get_info(self, info):
@@ -183,16 +188,16 @@ class Client:
         :param info: health, version, profiles, projecttags, sites, managements, me.
         :type info: str
         :return: non-project resource data.
-        :rtype: dict, str, None
+        :rtype: dict, str
         """
         # TODO: Handle pagination
-        # Authentication required for access to 'me' API endpoint.
         if info == "me" and not self.authenticated:
-            return None
+            raise Exception('Authentication Required for access to "me" endpoint')
 
         if info in self.npr_endpoints:
-            return self.fetch_resource(info)
-        return None
+            return self._fetch_resource(info)
+        else:
+            raise Exception(f"get_info() invalid info parameter:{info}")
 
     def get_choices(self):
         """
@@ -202,7 +207,7 @@ class Client:
         :rtype: list
         """
         # TODO: Filter: /updates/?timestamp="DATE"
-        return self.fetch_resource("choices")
+        return self._fetch_resource("choices")
 
     def get_attribute(self, attr):
         """
@@ -212,11 +217,11 @@ class Client:
         :param attr: fishsizes, benthicattributes, fishfamilies, fishgenera, fishspecies, fishgroupings.
         :type attr: str
         :return: attribute data.
-        :rtype: dict, None
+        :rtype: dict
         """
         if attr not in self.attrs_endpoints:
-            return None
-        return self.fetch_resource(attr)
+            raise Exception(f"Invalid attribute: {attr}")
+        return self._fetch_resource(attr)
 
     def get_projects(self, showall=False):
         """
@@ -226,13 +231,13 @@ class Client:
         :param showall: (optional) Returns all projects unfiltered by the user’s membership.
         :type showall: bool
         :return: projects.
-        :rtype: dict, None
+        :rtype: dict
         """
         if not showall:
-            return self.fetch_resource("projects")
+            return self._fetch_resource("projects")
         else:
             payload = "showall"
-            return self.fetch_resource("projects", parameters=payload)
+            return self._fetch_resource("projects", parameters=payload)
 
     def get_my_project(self, name=None, id=None):
         """
@@ -243,16 +248,17 @@ class Client:
         :param id: (optional if 'name' provided) MERMAID project ID.
         :type id: str
         :return: project with associated data.
-        :rtype: dict, None
+        :rtype: dict
         """
         if id:
-            return self.api_projects(id=id)
+            return self._api_projects_path(id=id)
         elif name:
             projects = self.get_projects(showall=True)
-            # Projects not None type.
-            if projects:
-                return lookup("name", name, projects["results"])
-        return None
+            proj = lookup("name", name, projects["results"])
+            if proj is None:
+                raise Exception(f"No project with the name:{name}")
+            else:
+                return proj
 
     def get_project_id(self, name=None, project=None):
         """
@@ -263,17 +269,24 @@ class Client:
         eg. project dict returned from get_my_project().
         :type: dict
         :return: project ID.
-        :rtype: str, None
+        :rtype: str
         """
-        if project and isinstance(project, dict):
-            return project.get("id")
+
+        if project and not isinstance(project, dict):
+            raise Exception(f"Invalid project type")
+
+        if project:
+            id = project.get("id")
+            if id:
+                return id
+            else:
+                raise Exception(f"No id found")
         elif name:
             project = self.get_my_project(name)
             # Nested if instead of 'elif name and self.get_my_project(name=name)' to improve performance by reducing
             # the number of API calls for name or id NoneType check.
             if project:
                 return project.get("id")
-        return None
 
     def get_project_data(self, data, name=None, id=None):
         """
@@ -287,7 +300,7 @@ class Client:
         :param data: project resource, observation or sample unit data.
         For more info visit https://mermaid-api.readthedocs.io/en/latest/projects.html#project-entity-resources
         :return: project data.
-        :rtype: dict, None
+        :rtype: dict
         """
         # Valid data check.
         if (
@@ -295,9 +308,9 @@ class Client:
             and data not in self.proj_obs
             and data not in self.samples
         ):
-            return None
+            raise Exception(f"Invalid project data:{data}")
         # Create path from either name or id parameter.
-        return self.api_projects(name=name, id=id, resource=data)
+        return self._api_projects_path(name=name, id=id, resource=data)
 
     def get_obs_data(self, obs, filter, filter_val=None, name=None, id=None):
         """
@@ -319,7 +332,7 @@ class Client:
         :param id: (optional if 'name' provided) MERMAID project ID.
         :type id: str
         :return: observation data.
-        :rtype: dict, None
+        :rtype: dict
         """
         obs_filters = {
             "obstransectbeltfishs": [
@@ -356,10 +369,13 @@ class Client:
             ],
         }
         # Valid observation and filter for observation.
-        if obs not in obs_filters or filter not in obs_filters[obs]:
-            return None
+        if obs not in obs_filters:
+            raise Exception(f"Invalid observation:{obs}")
+        if filter not in obs_filters[obs]:
+            raise Exception(f"Invalid observation filter:{filter}")
+
         # API observations path.
-        return self.api_projects(
+        return self._api_projects_path(
             name=name, id=id, resource=obs, filter=filter, filter_val=filter_val
         )
 
@@ -378,15 +394,18 @@ class Client:
         :type name: str
         :param id: (optional if 'name' provided) MERMAID project ID.
         :type id: str
-        :return: Same unit data.
-        :rtype: dict, None
+        :return: Sample unit data.
+        :rtype: dict
         """
         unit_filters = ["len_surveyed_min", "len_surveyed_max"]
         # Valid unit and filter exits and in valid unit filters.
-        if unit not in self.samples or filter and filter not in unit_filters:
-            return None
+        if unit not in self.samples:
+            raise Exception(f"Invalid unit:{unit}")
+        if filter and filter not in unit_filters:
+            raise Exception(f"Invalid unit filter:{filter}")
+
         # API sample unit path.
-        return self.api_projects(
+        return self._api_projects_path(
             name=name, id=id, resource=unit, filter=filter, filter_val=filter_val
         )
 
@@ -403,12 +422,12 @@ class Client:
         :param id: (optional if 'name' provided) MERMAID project ID.
         :type id: str
         :return: Sample unit methods data.
-        :rtype: dict, None
+        :rtype: dict
         """
         if method not in self.samples:
-            return None
+            raise Exception(f"Invalid sample method:{method}")
         # API call sample unit methods path.
-        return self.api_projects(name=name, id=id, resource=method)
+        return self._api_projects_path(name=name, id=id, resource=method)
 
     def get_sample_events(self, filter=None, filter_val=None, name=None, id=None):
         """
@@ -427,9 +446,9 @@ class Client:
         """
         event_filters = ["sample_date_before", "sample_date_after"]
         if filter and filter not in event_filters:
-            return None
+            raise Exception(f"Invalid event filter:{filter}")
         # API call sample events path.
-        return self.api_projects(
+        return self._api_projects_path(
             name=name,
             id=id,
             resource="sampleevents",
