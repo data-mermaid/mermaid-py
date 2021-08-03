@@ -3,9 +3,9 @@ from mermaid_py.client import Client
 
 # Valid data
 # Run jupyter notebook sign-in widget to get token, if tests fail with unauthorized 401 Exception, attempt token refresh
-valid_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2RhdGFtZXJtYWlkLmF1dGgwLmNvbS8iLCJzdWIiOiJnb29nbGUtb2F1dGgyfDEwMzQxOTkwNDcwMDU3MjAyMzQxMiIsImF1ZCI6WyJodHRwczovL2Rldi1hcGkuZGF0YW1lcm1haWQub3JnIl0sImlhdCI6MTYyNzg2MDgxOCwiZXhwIjoxNjI3ODY4MDE4LCJhenAiOiI0QUhjVkZjd3hIYjdwMVZGQjlzRldHNTJXTDdwZE5tNSIsInNjb3BlIjoib3BlbmlkIHByb2ZpbGUgZW1haWwifQ.-WjZyBeKn52qu1DO1R3HFVGEjayD7pBEDRDcZzXM4ds"
-valid_name = "Bronx River"
-valid_id = "2c56b92b-ba1c-491f-8b62-23b1dc728890"
+valid_token = "JWT Token"
+valid_name = "MERMAID Project Name"
+valid_id = "MERMAID Project ID"
 valid_project_filter = "sites"
 # Fail data
 fail_name = "fail"
@@ -27,7 +27,9 @@ def test_fetch_resource(resource):
         assert client_call == api_resp
 
 
-@pytest.mark.parametrize("resource", (fail_name, fail_id, "fail_resource", valid_name, valid_id))
+@pytest.mark.parametrize(
+    "resource", (fail_name, fail_id, "fail_resource", valid_name, valid_id)
+)
 @pytest.mark.client_info
 def test_api_projects_path(resource):
     # Fail test case with invalid resource name raises exception
