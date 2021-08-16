@@ -5,3 +5,10 @@
 developed to help you collect, analyze, and share coral reef monitoring
 data. Through `mermaid-py` you can access data from
 [MERMAID](https://collect.datamermaid.org/) directly in Python.
+
+
+## Installation 
+You can install mermaid-py from GitHub with:
+```
+pip install git+https://github.com/data-mermaid/mermaid-py
+```

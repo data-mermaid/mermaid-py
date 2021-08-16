@@ -1,4 +1,4 @@
-def lookup(key, val, list):
+def get_dict_by_keyval(key, val, list):
     """
     Utility function for accessing nested data in JSON object (dict). Iterates list of dictionaries for matching
     key value pair.

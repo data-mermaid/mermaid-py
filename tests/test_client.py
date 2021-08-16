@@ -88,11 +88,6 @@ def test_get_info(npr):
         assert client_call == api_resp
 
 
-@pytest.mark.client_info
-def test_get_choices():
-    assert client.get_choices()[0].get("name") == "belttransectwidths"
-
-
 @pytest.mark.parametrize(
     "attrs",
     [
@@ -150,7 +145,7 @@ def test_get_my_project(param):
         assert client_call == api_resp
 
 
-@pytest.mark.parametrize("param", [fail_name, valid_name, "valid_project"])
+@pytest.mark.parametrize("param", [fail_name, valid_name,])
 @pytest.mark.client_project
 def test_get_project_id(param):
     if param == fail_name:
@@ -160,9 +155,6 @@ def test_get_project_id(param):
         api_resp = client._api_projects_path(id=valid_id).get("id")
         client_call = client.get_project_id(name=param)
         assert client_call == api_resp
-    else:
-        proj = client.get_my_project(name=valid_name)
-        assert client.get_project_id(project=proj) == valid_id
 
 
 @pytest.mark.parametrize(

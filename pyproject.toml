@@ -5,20 +5,9 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
-# Tox configuration to run package testing using 'tox' in terminal
-[tool.tox]
-legacy_tox_ini = """
-[tox]
-envlist = py39
-
-[testenv]
-deps = pytest >= 3.0.0
-commands = pytest -vvl
-"""
-
 # Pytest custom markers
 [tool.pytest.ini_options]
 markers = [
-    "client_info: client general resource access from MERMAID API,(deselect with '-m \"not utilities\"'",
+    "client_info: client general resource access from MERMAID API,(deselect with 'pytest -m not client_info' ",
     "client_project: project related data access"
 ]

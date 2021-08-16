@@ -1,5 +1,5 @@
 import requests
-from mermaid_py.utilities import *
+from .utilities import *
 
 
 class Client:
@@ -9,9 +9,9 @@ class Client:
 
     # Class variables.
     # Production MERMAID API root URL.
-    api_url = "https://api.datamermaid.org/v1/"
+    API_URL = "https://api.datamermaid.org/v1/"
     # Development MERMAID API root URL.
-    api_dev_url = "https://dev-api.datamermaid.org/v1/"
+    API_DEV_URL = "https://dev-api.datamermaid.org/v1/"
     # Non-project resource endpoints.
     npr_endpoints = [
         "health",
@@ -63,7 +63,7 @@ class Client:
         "sampleunitmethods",
     ]
 
-    def __init__(self, token=None, url=api_dev_url):
+    def __init__(self, token=None, url=API_DEV_URL):
         """
         Constructor for Client base class used for accessing MERMAID API data.
         :param token: (optional) Authenticated JWT token. Defaults to (token=None).
@@ -254,39 +254,25 @@ class Client:
             return self._api_projects_path(id=id)
         elif name:
             projects = self.get_projects(showall=True)
-            proj = lookup("name", name, projects["results"])
+            proj = get_dict_by_keyval("name", name, projects["results"])
             if proj is None:
                 raise Exception(f"No project with the name:{name}")
             else:
                 return proj
 
-    def get_project_id(self, name=None, project=None):
+    def get_project_id(self, name):
         """
         Gets an ID for given MERMAID project.
         :param name: (optional if 'id' provided) MERMAID project name.
         :type: str
-        :param project: (optional if 'name' provided) project dict containing project data.
-        eg. project dict returned from get_my_project().
-        :type: dict
         :return: project ID.
         :rtype: str
         """
-
-        if project and not isinstance(project, dict):
-            raise Exception(f"Invalid project type")
-
+        project = self.get_my_project(name)
+        # Nested if instead of 'elif name and self.get_my_project(name=name)' to improve performance by reducing
+        # the number of API calls for name or id NoneType check.
         if project:
-            id = project.get("id")
-            if id:
-                return id
-            else:
-                raise Exception(f"No id found")
-        elif name:
-            project = self.get_my_project(name)
-            # Nested if instead of 'elif name and self.get_my_project(name=name)' to improve performance by reducing
-            # the number of API calls for name or id NoneType check.
-            if project:
-                return project.get("id")
+            return project.get("id")
 
     def get_project_data(self, data, name=None, id=None):
         """
