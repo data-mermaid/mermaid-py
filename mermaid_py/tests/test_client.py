@@ -4,9 +4,9 @@ from ..exceptions import *
 
 # Valid data
 # Run jupyter notebook sign-in widget to get token, if tests fail with unauthorized 401 Exception, attempt token refresh
-valid_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2RhdGFtZXJtYWlkLmF1dGgwLmNvbS8iLCJzdWIiOiJnb29nbGUtb2F1dGgyfDEwMzQxOTkwNDcwMDU3MjAyMzQxMiIsImF1ZCI6WyJodHRwczovL2Rldi1hcGkuZGF0YW1lcm1haWQub3JnIl0sImlhdCI6MTYyOTMyNTMwNiwiZXhwIjoxNjI5MzMyNTA2LCJhenAiOiI0QUhjVkZjd3hIYjdwMVZGQjlzRldHNTJXTDdwZE5tNSIsInNjb3BlIjoib3BlbmlkIHByb2ZpbGUgZW1haWwifQ.J3PZd7vD0388U8U_kBgIPEOZcitZsG41Ygy_leu4D9g"
-valid_name = "Bronx River"
-valid_id = "2c56b92b-ba1c-491f-8b62-23b1dc728890"
+valid_token = "JWT Token"
+valid_name = "MERMAID Project Name"
+valid_id = "MERMAID Project ID"
 valid_project_filter = "sites"
 # Fail data
 fail_name = "fail"
