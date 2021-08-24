@@ -5,10 +5,9 @@ from .exceptions import *
 
 class Client:
     """
-    Client base class used for accessing MERMAID API.
+    Client base class for accessing MERMAID API.
     """
 
-    # Class variables.
     # Production MERMAID API root URL.
     API_URL = "https://api.datamermaid.org/v1"
     # Development MERMAID API root URL.
@@ -24,7 +23,6 @@ class Client:
         "summarysites",
         "version",
     ]
-    # Attributes.
     project_attributes = [
         "benthicattributes",
         "fishfamilies",
@@ -33,7 +31,6 @@ class Client:
         "fishsizes",
         "fishspecies",
     ]
-    # Project resources.
     project_resources = [
         "collectrecords",
         "managements",
@@ -41,7 +38,6 @@ class Client:
         "project_profiles",
         "sites",
     ]
-    # Project observations.
     project_observations = [
         "obsbenthiclits",
         "obsbenthicpits",
@@ -50,7 +46,6 @@ class Client:
         "obstransectbeltfishs",
         "obsquadratbenthicpercent",
     ]
-    # Project sample units, methods.
     project_sample_units_methods = [
         "benthiclittransectmethods",
         "benthicpittransectmethods",
@@ -65,23 +60,19 @@ class Client:
 
     def __init__(self, token: str = None, url: str = API_DEV_URL, *args, **kwargs):
         """
-        Constructor for Client base class used for accessing MERMAID API data.
         :param token: (optional) Authenticated JWT token. Defaults to (token=None).
         :type token: str
         :param url: (optional) API URL. Defaults to (url='https://dev-api.datamermaid.org/v1/').
         :type url: str
         :return Client class object.
         """
-        # Instance variables.
-        # MERMAID API URL.
         self.url = url
-        # JWT token.
         self.token = token
-        # Authenticated Client instance variable.
         self.authenticated = False
-        # Checks if a token is provided and assigns authenticated instance variable.
+
         if token:
             self.authenticated = True
+
         # Initializes requests Session and assigns headers for all Client MERMAID API calls.
         self.session = requests.Session()
         self.session.headers.update(
@@ -94,7 +85,7 @@ class Client:
     # API paths
     def _fetch_resource(self, resource: str, parameters=None):
         """
-        Prepares API call and utilizes Client Session to make MERMAID API calls.
+        Prepares API call and uses Client Session to make MERMAID API calls.
         :param resource: (optional) resource path. Defaults to (resource=None).
         :type resource: str
         :param parameters: (optional) parameters for request.
@@ -115,57 +106,13 @@ class Client:
         if resp.status_code == requests.codes.ok:
             return resp.json()
         elif resp.status_code == 401:
-            raise UnauthorizedClientException()
+            raise UnauthorizedClientException(code=resp.status_code)
         elif resp.status_code == 404:
-            raise InvalidResourceException(resource)
+            raise InvalidResourceException(resource=resource, code=resp.status_code)
         else:
-            raise Exception(f"_fetch_resource Exception status code:{resp.status_code}")
-
-    def _fetch_project_resource(
-        self,
-        id: str = None,
-        name: str = None,
-        resource: str = None,
-        filter: str = None,
-        filter_val=None,
-    ):
-        """
-        Helper class function used to create and call projects path '/projects/<project_id>/' based on name or id
-        of project.
-        See https://mermaid-api.readthedocs.io/en/latest/projects.html#project-resources for more information.
-        :param id: (optional if 'name' provided) MERMAID project ID. If both id and name are provided, then id is used.
-        :type: id: str
-        :param name: (optional if 'id' provided) MERMAID project name.
-        :type name: str
-        :param resource: MERMAID project entity resources. /projects/<project_id>/<resource>
-        :param filter: MERMAID project resource filters.
-        :type filter: str
-        :param filter_val: (optional) Required for resource filters requiring values. eg. (size_min/size_max,
-        count_min/count_max, length_min/length_max, len_surveyed_min/len_surveyed_max,
-        sample_date_before/sample_date_after).
-        :type filter_val: str, int
-        :return: project resource.
-        :rtype: dict
-        """
-        # Generate path favoring id for path creation over name parameter.
-        path = ""
-        if id or name:
-            path = "projects/"
-        p_id = id
-        # If id not given then get the id from project name
-        if name and p_id is None:
-            p_id = self.get_project_id(name=name)
-        if p_id:
-            path += f"{p_id}/"
-        if resource:
-            path += f"{resource}/"
-
-        payload = None
-        if filter:
-            payload = filter
-        if filter and filter_val:
-            payload = {filter: filter_val}
-        return self._fetch_resource(path, parameters=payload)
+            raise Exception(
+                f"Exception _fetch_resource. Response Code: {resp.status_code}"
+            )
 
     # Get functions.
     def get_info(self, info: str):
@@ -181,13 +128,13 @@ class Client:
         # TODO: Handle pagination
         if info == "me" and not self.authenticated:
             raise UnauthorizedClientException(
-                'Authentication required for access to "me" endpoint'
+                message='Authentication required for access to "me" endpoint'
             )
 
         if info in self.non_project_resources:
             return self._fetch_resource(info)
         else:
-            raise InvalidResourceException(info)
+            raise InvalidResourceException(resource=info)
 
     def get_choices(self):
         """
@@ -265,11 +212,10 @@ class Client:
         :return: projects.
         :rtype: dict
         """
+        payload = None
         if showall:
             payload = "showall"
-            return self._fetch_resource("projects", parameters=payload)
-        else:
-            return self._fetch_resource("projects")
+        return self._fetch_resource("projects", parameters=payload)
 
     def get_project(self, id: str = None, name: str = None):
         """
@@ -283,7 +229,7 @@ class Client:
         :rtype: dict
         """
         if id:
-            self._fetch_project_resource(id=id)
+            return self.get_project_resource(id=id)
         elif name:
             projects = self.get_projects(showall=True)
             project = get_dict_by_keyval("name", name, projects["results"])
@@ -307,25 +253,55 @@ class Client:
         else:
             raise InvalidProjectException(name=name)
 
-    def get_project_resource(self, resource: str, id: str = None, name: str = None):
+    def get_project_resource(
+        self,
+        resource: str = None,
+        id: str = None,
+        name: str = None,
+        filter: str = None,
+        filter_val=None,
+    ):
         """
-        Gets project resource data including resources and observations. Authenticated access to project data
+        Gets project resource data including; resources and observations. Authenticated access to project data
         depends on the association of a user profile with a project. Unauthenticated access to project data
         depends on the data sharing policies chosen per survey method for a project.
+        See https://mermaid-api.readthedocs.io/en/latest/projects.html#project-resources for more information.
+        :param resource: MERMAID project entity resources.
         :param id: (optional if 'name' provided) MERMAID project ID. If both id and name are provided, then id is used.
         :type id: str
         :param name: (optional if 'id' provided) MERMAID project name.
         :type name: str
-        :param resource: project resource, observation or sample units data.
+        :param resource: project resource
+        :param filter: MERMAID project resource filters.
+        :type filter: str
+        :param filter_val: (optional) Required for resource filters requiring values. eg. (size_min/size_max,
+        count_min/count_max, length_min/length_max, len_surveyed_min/len_surveyed_max,
+        sample_date_before/sample_date_after).
+        :type filter_val: str, int
         For more info visit https://mermaid-api.readthedocs.io/en/latest/projects.html#project-entity-resources
         :return: project data.
         :rtype: dict
         """
-        # Valid data check.
-        if resource not in self.project_resources:
-            raise InvalidResourceException(resource=resource)
-        # Create path from either name or id parameter.
-        return self._fetch_project_resource(id=id, name=name, resource=resource)
+        # Generate path favoring id for path creation over name parameter.
+        path = ""
+        if id or name:
+            path = "projects/"
+        p_id = id
+        # If id not given then get the id from project name
+        if name and p_id is None:
+            p_id = self.get_project_id(name=name)
+        if p_id:
+            path = f"{path}{p_id}/"
+        if resource:
+            path = f"{path}{resource}/"
+
+        payload = None
+        if filter:
+            payload = filter
+        if filter and filter_val:
+            payload = {filter: filter_val}
+
+        return self._fetch_resource(resource=path, parameters=payload)
 
     def get_observations(
         self,
@@ -390,15 +366,14 @@ class Client:
                 "score",
             ],
         }
-        # Valid observation and filter for observation.
-        if observation not in observations_filters:
-            raise InvalidResourceException(f"Invalid observation:{observation}")
-        if filter not in observations_filters[observation]:
-            raise InvalidResourceException(f"Invalid observation filter:{filter}")
 
-        # API observations path.
-        return self._fetch_project_resource(
-            id=id, name=name, resource=observation, filter=filter, filter_val=filter_val
+        if observation not in observations_filters:
+            raise InvalidResourceException(resource=observation)
+        if filter not in observations_filters[observation]:
+            raise InvalidResourceException(resource=filter)
+
+        return self.get_project_resource(
+            resource=observation, id=id, name=name, filter=filter, filter_val=filter_val
         )
 
     def get_sample_units(
@@ -427,15 +402,14 @@ class Client:
         :rtype: dict
         """
         unit_filters = ["len_surveyed_min", "len_surveyed_max"]
-        # Valid unit and filter exits and in valid unit filters.
-        if unit not in self.project_sample_units_methods:
-            raise InvalidResourceException(f"Invalid unit:{unit}")
-        if filter and filter not in unit_filters:
-            raise InvalidResourceException(f"Invalid unit filter:{filter}")
 
-        # API sample units path.
-        return self._fetch_project_resource(
-            id=id, name=name, resource=unit, filter=filter, filter_val=filter_val
+        if unit not in self.project_sample_units_methods:
+            raise InvalidResourceException(resource=unit)
+        if filter and filter not in unit_filters:
+            raise InvalidResourceException(resource=filter)
+
+        return self.get_project_resource(
+            resource=unit, id=id, name=name, filter=filter, filter_val=filter_val
         )
 
     def get_sample_methods(self, method: str, id: str = None, name: str = None):
@@ -454,9 +428,9 @@ class Client:
         :rtype: dict
         """
         if method not in self.project_sample_units_methods:
-            raise InvalidResourceException(f"Invalid sample methods:{method}")
-        # API call sample units methods path.
-        return self._fetch_project_resource(id=id, name=name, resource=method)
+            raise InvalidResourceException(resource=method)
+
+        return self.get_project_resource(resource=method, id=id, name=name)
 
     def get_sample_events(
         self,
@@ -480,13 +454,14 @@ class Client:
         :return: sample events data.
         """
         event_filters = ["sample_date_before", "sample_date_after"]
+
         if filter and filter not in event_filters:
-            raise InvalidResourceException(f"Invalid event filter:{filter}")
-        # API call sample events path.
-        return self._fetch_project_resource(
-            name=name,
-            id=id,
+            raise InvalidResourceException(resource=filter)
+
+        return self.get_project_resource(
             resource="sampleevents",
+            id=id,
+            name=name,
             filter=filter,
             filter_val=filter_val,
         )
