@@ -1,0 +1,13 @@
+[build-system]
+requires = [
+    "setuptools>=42",
+    "wheel"
+]
+build-backend = "setuptools.build_meta"
+
+# Pytest custom markers for running grouped tests
+[tool.pytest.ini_options]
+markers = [
+    "client_info: client general resource access from MERMAID API,(deselect with: pytest -m 'not client_info'",
+    "client_project: project related data access"
+]
